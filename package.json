@@ -1,0 +1,25 @@
+{
+	"name": "poggies",
+	"version": "0.0.1",
+	"description": "A simple JavaScript templating engine",
+	"main": "index.js",
+	"scripts": {
+		"test": "cd test && node test.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/tbhmens/poggies.git"
+	},
+	"keywords": [
+		"templating",
+		"poggies",
+		"template",
+		"engine"
+	],
+	"author": "tbhmens",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/tbhmens/poggies/issues"
+	},
+	"homepage": "https://github.com/tbhmens/poggies#readme"
+}

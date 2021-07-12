@@ -1,0 +1,21 @@
+html(lang="en-US"){
+    head{
+        title[Test Page]
+        style[
+            .red{
+                color: red;
+            }
+            .bold{
+                font-weight: bold;
+            }
+        ]
+    }
+    body{
+        h1(class="red bold")[Hello World!]
+        p(
+            class="bold"
+            data-close=")"
+        )[:D]
+        a(href=">`https://example.`+tld")[>`example.${tld}`]
+    }
+}
