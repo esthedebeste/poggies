@@ -3,14 +3,27 @@ const exec = require("./executor.js");
 const isTag = a => /^[\w-]+$/.test(a);
 const isWS = a => /^\s+$/.test(a);
 class Statement {
+	/**
+	 * @param {string} value The value
+	 * @param {boolean} evaluate Whether to execute value as JS code
+	 */
 	constructor(value = "", evaluate = false) {
 		this.value = value;
 		this.evaluate = evaluate;
 	}
-	async get(opts) {
-		if (this.evaluate) return await exec(this.value, opts);
-		return await this.value;
+	/**
+	 * Evaluates the value.
+	 * @param {[x: string]: any} opts Passed variables
+	 * @returns {Promise}
+	 */
+	get(opts) {
+		if (this.evaluate) return exec(this.value, opts);
+		return this.value;
 	}
+	/**
+	 * @param {string} source Statement source
+	 * @returns {Statement}
+	 */
 	static from(source) {
 		return new Statement(
 			source.startsWith(">") ? source.slice(1) : source,
@@ -20,44 +33,56 @@ class Statement {
 }
 
 class Attributes {
+	/**
+	 * @param {[x: string]: Statement} attributes
+	 */
 	constructor(attributes = {}) {
 		Object.assign(this, attributes);
 	}
-	static from(source, i) {
+	/**
+	 * Creates an Attributes object from Poggies syntax.
+	 * @param {string} source The source string to parse from
+	 * @param {number} index The index to start parsing from
+	 * @returns {{attrs: Attributes, index: number}} The resulting attributes, and the index at which it ended.
+	 */
+	static from(source, index) {
 		let attrs = [];
 		let valuing = false;
-		while ((source[i] === "(" || isWS(source[i])) && i < source.length) {
-			if (source[i] === "(") i++;
+		while (
+			(source[index] === "(" || isWS(source[index])) &&
+			index < source.length
+		) {
+			if (source[index] === "(") index++;
 			let key = null;
 			let value = null;
-			let curr = source[i];
+			let curr = source[index];
 			let ignoreNext = false;
-			while (++i < source.length) {
+			while (++index < source.length) {
 				if (!ignoreNext) {
-					if (source[i] === "\\") {
+					if (source[index] === "\\") {
 						ignoreNext = true;
 						continue;
-					} else if (source[i] === `=`) {
+					} else if (source[index] === `=`) {
 						key = curr;
 						curr = "";
-						i++;
+						index++;
 						continue;
-					} else if (valuing && source[i] === ` `) {
+					} else if (valuing && source[index] === ` `) {
 						value = curr;
 						curr = "";
 						break;
-					} else if (source[i] === `"`) {
-						i++;
+					} else if (source[index] === `"`) {
+						index++;
 						valuing = !valuing;
 						if (value == null) value = curr;
 						curr = "";
 						break;
-					} else if (!valuing && source[i] === `)`) {
+					} else if (!valuing && source[index] === `)`) {
 						if (value == null) value = curr;
 						break;
 					}
 				}
-				curr += source[i];
+				curr += source[index];
 				ignoreNext = false;
 			}
 			if (!(key == null || value == null)) {
@@ -66,10 +91,10 @@ class Attributes {
 				value = null;
 			}
 		}
-		while (i < source.length && isWS(source[i])) i++;
-		i++;
+		while (index < source.length && isWS(source[index])) index++;
+		index++;
 		return {
-			i,
+			index,
 			attrs: new Attributes(
 				Object.fromEntries(
 					attrs.map(entries =>
@@ -83,10 +108,10 @@ class Attributes {
 
 class Element {
 	/**
-	 * @param {string} tag
-	 * @param {Element[]} children
-	 * @param {Statement} content
-	 * @param {Attributes} attributes
+	 * @param {string} tag Element tag
+	 * @param {Element[]} children The element's children
+	 * @param {Statement} content Element's inner text
+	 * @param {Attributes} attributes Element's attributes
 	 */
 	constructor(
 		tag = "",
@@ -99,6 +124,12 @@ class Element {
 		this.content = content;
 		this.attributes = attributes;
 	}
+	/**
+	 * Creates an Element from Poggies syntax.
+	 * @param {string} source The source string to parse from
+	 * @param {number} index The index to start parsing from
+	 * @returns {{element: Element, index: number}} The resulting element, and the index at which it ended.
+	 */
 	static from(source, index = 0) {
 		let returning = new Element();
 		const len = source.length;
@@ -109,9 +140,9 @@ class Element {
 
 		// Attributes
 		if (source[index] === "(") {
-			const { attrs, i } = Attributes.from(source, index);
-			returning.attributes = attrs;
-			index = i;
+			const attrs = Attributes.from(source, index);
+			returning.attributes = attrs.attrs;
+			index = attrs.index;
 		}
 		// Content
 		if (source[index] === "[") {
@@ -149,32 +180,50 @@ class Element {
 		return { element: returning, index };
 	}
 }
+/**
+ * Converts an Element to HTML
+ * @param {Element} element Element to HTMLify
+ * @param {{[x: string]: any}} passing Passed variables
+ * @returns {Promise<string>} The HTML
+ */
+const htmlify = async (element, passing) => {
+	let result = `<${element.tag}`;
+	for (let key in element.attributes)
+		result += ` ${key}="${await element.attributes[key].get(passing)}"`;
+	result += `>${await element.content.get(passing)}`;
+	for (let child of element.children) result += await htmlify(child, passing);
+	result += `</${element.tag}>`;
+	return result;
+};
 
 class Poggies {
 	/**
-	 * @param {string} content Text to parse
+	 * @param {string} content Poggies code to parse
 	 */
 	constructor(content) {
 		this.parsed = Element.from(content).element;
 	}
-	/** @private */
-	async htmlify(element, passing) {
-		let result = `<${element.tag}`;
-		for (let key in element.attributes)
-			result += ` ${key}="${await element.attributes[key].get(passing)}"`;
-		result += `>${await element.content.get(passing)}`;
-		for (let child of element.children)
-			result += await this.htmlify(child, passing);
-		result += `</${element.tag}>`;
-		return result;
-	}
 	/**
-	 * @param {object} passing What to pass to template statements
+	 * Renders this Poggies document with some given variables
+	 * @param {{[x: string]: any}} passing Passed variables
+	 * @returns {Promise<string>} The HTML
 	 */
-	async render(passing = {}) {
-		return await this.htmlify(this.parsed, passing);
+	render(passing = {}) {
+		return htmlify(this.parsed, passing);
 	}
 }
-const renderFile = (file, passing) =>
-	new Poggies(readFileSync(file).toString()).render(passing);
+
+const cache = {};
+
+/**
+ * Renders a Poggies file with some given variables
+ * @param {string} file File path
+ * @param {{[x: string]: any}} passing Passed variables
+ * @returns
+ */
+const renderFile = (file, passing) => {
+	if (!(file in cache))
+		cache[file] = new Poggies(readFileSync(file).toString());
+	return cache[file].render(passing);
+};
 module.exports = { Poggies, renderFile };
