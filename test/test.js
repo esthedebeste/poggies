@@ -1,14 +1,18 @@
-const { renderFile } = require("../index.js");
-const { writeFileSync } = require("fs");
+import { writeFileSync } from "fs";
+/*
+Symlink created in node_modules to allow test to
+import its parent without needing to specify a path
+*/
+import { renderFile } from "poggies";
 const start = performance.now();
 const ansi = (...n) => process.stdout.write(`\x1b[${n.join(";")}m`, ``);
-renderFile("test.pog", { tld: "com" }).then(file => {
+renderFile("test.pog", { site: "example", tld: "com" }).then(file => {
 	ansi(33, 1);
 	console.log(
 		`Uncached renderFile speed ${(performance.now() - start).toFixed(4)}ms`
 	);
 	const first = performance.now();
-	renderFile("test.pog", { tld: "org" }).then(file => {
+	renderFile("test.pog", { site: "example", tld: "org" }).then(file => {
 		ansi(32, 1);
 		console.log(
 			`Cached renderFile speed   ${(performance.now() - first).toFixed(4)}ms`

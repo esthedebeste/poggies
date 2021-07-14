@@ -16,6 +16,6 @@ html(lang="en-US"){
             class="bold"
             data-close=")"
         )[:D]
-        a(href=">`https://example.`+tld")[>`example.${tld}`]
+        a(href=">`https://${site}.`+tld")[>`${site}.${tld}`]
     }
 }

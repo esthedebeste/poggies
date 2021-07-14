@@ -6,9 +6,9 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
  * @returns {any} Result
  */
 module.exports = async (code, opts) => {
-	const source = `
-    ${Object.keys(opts)
-			.map(variable => `const ${variable} = ${JSON.stringify(opts[variable])};`)
-			.join("")}return ${code};`;
-	return await AsyncFunction(source)();
+	const source = `return ${code};`;
+	return await AsyncFunction(
+		...Object.keys(opts),
+		source
+	)(...Object.values(opts));
 };

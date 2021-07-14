@@ -1,15 +1,14 @@
 {
 	"name": "poggies",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "A simple JavaScript templating engine",
-	"main": "index.js",
+	"type": "commonjs",
+	"main": "./src/index.js",
+	"module": "./src/module.mjs",
 	"scripts": {
 		"test": "cd test && node test.js"
 	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/tbhmens/poggies.git"
-	},
+	"repository": "github:tbhmens/poggies",
 	"keywords": [
 		"templating",
 		"poggies",
