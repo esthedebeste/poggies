@@ -1,6 +1,6 @@
 # poggies
 
-Poggies is a simple HTML templating engine, following a very simple syntax.
+Poggies is a simple 0-dependencies HTML templating engine, with a very simple syntax.
 
 ## Usage
 
@@ -27,6 +27,15 @@ This will log:
 <h1 class="red bold">Hello World!</h1>
 ```
 
+You can also just directly use renderFile like this (hello.pog containing your poggies code, of course):
+
+```js
+const { renderFile } = require("poggies");
+renderFile("hello.pog").then(html => {
+	console.log(html);
+});
+```
+
 ## Syntax
 
 Simple example document:
@@ -50,7 +59,9 @@ html(lang="en-US"){
 }
 ```
 
-Poggies also supports JavaScript in the templates. To use that, add an > like so:
+Poggies also supports JavaScript in the templates (and async/await syntax!)
+
+To add dynamic elements to your page, add an > like so:
 
 ```
 h1(class="red bold")[>`six plus six is ${6+6}`]
@@ -84,3 +95,15 @@ This will evaluate to
 ```html
 <h1 class="red bold">12 plus 26 is 38</h1>
 ```
+
+Custom variables also work with renderFile of course, just input your variables into renderFile's second argument :D
+<br/><br/><br/>
+### Extras
+
+<img src="https://cdn.betterttv.net/emote/5d38aaa592fc550c2d5996b8/1x" alt="peepoClap" align="left"/> You made it to the bottom of the README, it's time for some neat extras!
+
+- Poggies also supports ESM, so you can also import things using `import { ____ } from "poggies"`!
+- renderFile actually caches files, so your poor CPU doesn't have to parse everything again!  
+  In a small test this lead to a pretty decent ~4ms to ~0.2ms improvement!
+- Poggies has a bunch of JSDocs built in, meaning that your IDE will be able to show you  
+  a bit of a description about Poggies' functions and classes!
