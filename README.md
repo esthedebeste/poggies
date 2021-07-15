@@ -102,8 +102,10 @@ Custom variables also work with renderFile of course, just input your variables 
 
 <img src="https://cdn.betterttv.net/emote/5d38aaa592fc550c2d5996b8/1x" alt="peepoClap" align="left"/> You made it to the bottom of the README, it's time for some neat extras!
 
+- Poggies syntax also supports # and . as shorthands for class and id! (They kind of look like CSS selectors)  
+  Example:  
+  `h1#woah.red.bold[I'm red, I'm bold, and my ID is woah!]`
 - Poggies also supports ESM, so you can also import things using `import { ____ } from "poggies"`!
 - renderFile actually caches files, so your poor CPU doesn't have to parse everything again!  
   In a small test this lead to a pretty decent ~4ms to ~0.2ms improvement!
-- Poggies has a bunch of JSDocs built in, meaning that your IDE will be able to show you  
-  a bit of a description about Poggies' functions and classes!
+- Poggies has a bunch of JSDocs built in, meaning that your IDE will be able to show you a bit of a description about Poggies' functions and classes!

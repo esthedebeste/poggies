@@ -93,17 +93,23 @@ class Element {
 	/**
 	 * @param {string} tag Element tag
 	 * @param {Element[]} children The element's children
+	 * @param {string} id The element's id field
+	 * @param {string[]} classList The element's classes
 	 * @param {Statement} content Element's inner text
 	 * @param {Attributes} attributes Element's attributes
 	 */
 	constructor(
 		tag = "",
 		children = [],
+		id = "",
+		classList = [],
 		content = new Statement(),
 		attributes = new Attributes()
 	) {
 		this.tag = tag;
 		this.children = children;
+		this.id = id;
+		this.classList = classList;
 		this.content = content;
 		this.attributes = attributes;
 	}
@@ -120,6 +126,18 @@ class Element {
 		for (; index < len && isTag(source[index]); index++)
 			returning.tag += source[index];
 		while (isWS(source[index]) && index < len) index++;
+		if (source[index] === "#") {
+			index++;
+			for (; index < len && isTag(source[index]); index++)
+				returning.id += source[index];
+		}
+		while (source[index] === ".") {
+			index++;
+			let clas = "";
+			for (; index < len && isTag(source[index]); index++)
+				clas += source[index];
+			returning.classList.push(clas);
+		}
 		// Attributes
 		if (source[index] === "(")
 			({ index, attrs: returning.attributes } = Attributes.from(source, index));
@@ -157,6 +175,9 @@ class Element {
  */
 const htmlify = async (element, passing) => {
 	let result = `<${element.tag}`;
+	if (element.id) result += ` id="${element.id}"`;
+	if (element.classList.length > 0)
+		result += ` class="${element.classList.join(" ")}"`;
 	for (let key in element.attributes)
 		result += ` ${key}="${await element.attributes[key].get(passing)}"`;
 	result += `>${await element.content.get(passing)}`;

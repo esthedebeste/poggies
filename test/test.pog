@@ -2,6 +2,9 @@ html(lang="en-US"){
     head{
         title[Test Page]
         style[
+            #root{
+                font-family: cursive;
+            }
             .green{
                 color: lime;
             }
@@ -13,8 +16,8 @@ html(lang="en-US"){
             }
         ]
     }
-    body{
-        h1(class="red bold")[Hello World!]
+    body#root{
+        h1#hey-world.red.bold[Hello World!]
         p(
             class="bold green"
             data-close=")"
