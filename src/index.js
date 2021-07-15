@@ -46,63 +46,46 @@ class Attributes {
 	 * @returns {{attrs: Attributes, index: number}} The resulting attributes, and the index at which it ended.
 	 */
 	static from(source, index) {
-		let attrs = [];
-		let valuing = false;
-		while (
-			(source[index] === "(" || isWS(source[index])) &&
-			index < source.length
-		) {
-			if (source[index] === "(") index++;
-			let key = null;
-			let value = null;
-			let curr = source[index];
-			let ignoreNext = false;
-			while (++index < source.length) {
-				if (!ignoreNext) {
-					if (source[index] === "\\") {
-						ignoreNext = true;
-						continue;
-					} else if (source[index] === `=`) {
-						key = curr;
-						curr = "";
-						index++;
-						continue;
-					} else if (valuing && source[index] === ` `) {
-						value = curr;
-						curr = "";
-						break;
-					} else if (source[index] === `"`) {
-						index++;
-						valuing = !valuing;
-						if (value == null) value = curr;
-						curr = "";
-						break;
-					} else if (!valuing && source[index] === `)`) {
-						if (value == null) value = curr;
-						break;
-					}
-				}
-				curr += source[index];
-				ignoreNext = false;
-			}
-			if (!(key == null || value == null)) {
-				attrs.push([key, value]);
-				key = null;
-				value = null;
-			}
-		}
-		while (index < source.length && isWS(source[index])) index++;
+		// Index is the index of the starting (, which we can skip for parsing.
 		index++;
-		return {
-			index,
-			attrs: new Attributes(
-				Object.fromEntries(
-					attrs.map(entries =>
-						entries.map((v, i) => (i === 1 && Statement.from(v)) || v.trim())
-					)
-				)
-			)
-		};
+		const attrs = {};
+		for (; index < source.length; index++) {
+			while (isWS(source[index]) && index < source.length) index++;
+			if (source[index] === ")") {
+				return {
+					index: index + 1,
+					attrs: new Attributes(attrs)
+				};
+			}
+			let key = "";
+			for (; index < source.length && isTag(source[index]); index++)
+				key += source[index];
+			while (isWS(source[index]) && index < source.length) index++;
+			let value = "";
+			let evaluate = false;
+			if (source[index] === "=") {
+				index++;
+				if (source[index] === ">") {
+					evaluate = true;
+					index++;
+				}
+				if (source[index] !== `"`)
+					throw new Error(`Invalid attribute, no ending "`);
+				index++;
+				let escape = 0;
+				for (; index < source.length; index++) {
+					if (source[index] === "\\") escape++;
+					else if (source[index] === `"` && escape % 2 === 0) break;
+					else if (escape - 1 > 0) {
+						value += "\\".repeat(escape / 2);
+						escape = 0;
+						value += source[index];
+					} else value += source[index];
+				}
+			}
+			attrs[key] = new Statement(value, evaluate);
+		}
+		throw new Error(`Element doesn't have closing ) tag.`);
 	}
 }
 
@@ -133,49 +116,35 @@ class Element {
 	static from(source, index = 0) {
 		let returning = new Element();
 		const len = source.length;
-		while (index < len && isWS(source[index])) index++;
+		while (isWS(source[index]) && index < len) index++;
 		for (; index < len && isTag(source[index]); index++)
 			returning.tag += source[index];
-		while (index < len && isWS(source[index])) index++;
-
+		while (isWS(source[index]) && index < len) index++;
 		// Attributes
-		if (source[index] === "(") {
-			const attrs = Attributes.from(source, index);
-			returning.attributes = attrs.attrs;
-			index = attrs.index;
-		}
+		if (source[index] === "(")
+			({ index, attrs: returning.attributes } = Attributes.from(source, index));
 		// Content
 		if (source[index] === "[") {
 			let content = "";
 			let ignoreNext = false;
-			while (++index < len) {
-				if (!ignoreNext) {
-					if (source[index] === "\\") {
-						ignoreNext = true;
-						continue;
-					} else if (source[index] === "]") break;
-				}
-				ignoreNext = false;
-				content += source[index];
-			}
+			while (++index < len)
+				if (ignoreNext) ignoreNext = false;
+				else if (source[index] === "\\") ignoreNext = true;
+				else if (source[index] === "]") break;
+				else content += source[index];
 			returning.content = Statement.from(content.trim());
-			while (index < len && isWS(source[index])) index++;
+			while (isWS(source[index]) && index < len) index++;
 		}
 
 		// Children
 		if (source[index] === "{") {
-			index++;
-			while (index < len && isWS(source[index])) index++;
-			let child = { index };
+			while (isWS(source[++index]) && index < source.length);
 			while (isTag(source[index])) {
-				const ind = index;
-				if (source[ind] === "}") break;
-				child = Element.from(source, ind);
-				returning.children.push(child.element);
-				index = child.index + 1;
-				while (index < len && isWS(source[index])) index++;
+				let element;
+				({ element, index } = Element.from(source, index));
+				returning.children.push(element);
+				while (isWS(source[++index]) && index < source.length);
 			}
-			returning.children = returning.children.filter(a => a.tag);
 		}
 		return { element: returning, index };
 	}
@@ -213,17 +182,16 @@ class Poggies {
 	}
 }
 
-const cache = {};
-
+const fileCache = {};
 /**
  * Renders a Poggies file with some given variables
  * @param {string} file File path
  * @param {{[x: string]: any}} passing Passed variables
- * @returns
+ * @returns {Promise<string>} The HTML
  */
 const renderFile = (file, passing) => {
-	if (!(file in cache))
-		cache[file] = new Poggies(readFileSync(file).toString());
-	return cache[file].render(passing);
+	if (!(file in fileCache))
+		fileCache[file] = new Poggies(readFileSync(file).toString());
+	return fileCache[file].render(passing);
 };
 module.exports = { Poggies, renderFile };
