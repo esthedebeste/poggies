@@ -127,6 +127,7 @@ class Element {
 		for (; index < len && isTag(source[index]); index++)
 			returning.tag += source[index];
 		while (isWS(source[index]) && index < len) index++;
+		if (isTag(source[index])) return { element: returning, index: index - 1 };
 		if (source[index] === "#") {
 			index++;
 			for (; index < len && isTag(source[index]); index++)
