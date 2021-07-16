@@ -238,4 +238,9 @@ const renderFile = (file, passing) => {
 		fileCache[file] = new Poggies(readFileSync(file).toString());
 	return fileCache[file].render(passing);
 };
-module.exports = { Poggies, renderFile };
+// Support for express templating
+const __express = (file, passing, _options, callback) =>
+	renderFile(file, passing)
+		.then(result => callback(null, result))
+		.catch(err => callback(err));
+module.exports = { Poggies, renderFile, __express };
