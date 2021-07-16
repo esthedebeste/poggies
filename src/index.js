@@ -49,7 +49,7 @@ class Attributes {
 		// Index is the index of the starting (, which we can skip for parsing.
 		index++;
 		const attrs = {};
-		for (; index < source.length; index++) {
+		while (index < source.length) {
 			while (isWS(source[index]) && index < source.length) index++;
 			if (source[index] === ")") {
 				return {
@@ -82,6 +82,7 @@ class Attributes {
 						value += source[index];
 					} else value += source[index];
 				}
+				index++;
 			}
 			attrs[key] = new Statement(value, evaluate);
 		}
@@ -130,6 +131,7 @@ class Element {
 			index++;
 			for (; index < len && isTag(source[index]); index++)
 				returning.id += source[index];
+			while (isWS(source[index]) && index < len) index++;
 		}
 		while (source[index] === ".") {
 			index++;
@@ -137,6 +139,7 @@ class Element {
 			for (; index < len && isTag(source[index]); index++)
 				clas += source[index];
 			returning.classList.push(clas);
+			while (isWS(source[index]) && index < len) index++;
 		}
 		// Attributes
 		if (source[index] === "(")
@@ -178,8 +181,11 @@ const htmlify = async (element, passing) => {
 	if (element.id) result += ` id="${element.id}"`;
 	if (element.classList.length > 0)
 		result += ` class="${element.classList.join(" ")}"`;
-	for (let key in element.attributes)
-		result += ` ${key}="${await element.attributes[key].get(passing)}"`;
+	for (let key in element.attributes) {
+		const value = await element.attributes[key].get(passing);
+		if (value === "") result += ` ${key}`;
+		else result += ` ${key}="${value}"`;
+	}
 	result += `>${await element.content.get(passing)}`;
 	for (let child of element.children) result += await htmlify(child, passing);
 	result += `</${element.tag}>`;
@@ -188,18 +194,35 @@ const htmlify = async (element, passing) => {
 
 class Poggies {
 	/**
-	 * @param {string} content Poggies code to parse
+	 * Root element's children.
+	 * @type {Element[]}
 	 */
-	constructor(content) {
-		this.parsed = Element.from(content).element;
+	parsed;
+	/**
+	 * Initializes a Poggies document
+	 * @param {string} source Poggies code to parse
+	 */
+	constructor(source) {
+		this.parsed = [];
+		let index = 0;
+		while (isWS(source[index]) && index < len) index++;
+		while (isTag(source[index]) && index < source.length) {
+			let element;
+			({ element, index } = Element.from(source, index));
+			this.parsed.push(element);
+			while (isWS(source[++index]) && index < source.length);
+		}
 	}
 	/**
 	 * Renders this Poggies document with some given variables
 	 * @param {{[x: string]: any}} passing Passed variables
 	 * @returns {Promise<string>} The HTML
 	 */
-	render(passing = {}) {
-		return htmlify(this.parsed, passing);
+	async render(passing = {}) {
+		let result = ``;
+		for (const element of this.parsed)
+			result += await htmlify(element, passing);
+		return result;
 	}
 }
 

@@ -1,6 +1,6 @@
 {
 	"name": "poggies",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "A simple JavaScript templating engine",
 	"type": "commonjs",
 	"main": "./src/index.js",

@@ -105,6 +105,8 @@ Custom variables also work with renderFile of course, just input your variables 
 - Poggies syntax also supports # and . as shorthands for class and id! (They kind of look like CSS selectors)  
   Example:  
   `h1#woah.red.bold[I'm red, I'm bold, and my ID is woah!]`
+- Attributes can have no value, just like in normal HTML! For example:  
+  `h1(hidden)[You can't see me]`
 - Poggies also supports ESM, so you can also import things using `import { ____ } from "poggies"`!
 - renderFile actually caches files, so your poor CPU doesn't have to parse everything again!  
   In a small test this lead to a pretty decent ~4ms to ~0.2ms improvement!

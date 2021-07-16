@@ -25,3 +25,7 @@ html(lang="en-US"){
         a(href=>"`https://${site}.`+tld")[>`${site}.${tld}`]
     }
 }
+multielemtest{
+    div[Multiple Parent Elements work!]
+    p(hidden)[If this is visible, attributes aren't working properly.]
+}
