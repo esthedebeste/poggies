@@ -4,3 +4,4 @@ test
 .prettierrc
 .gitignore
 README.md
+.vscode

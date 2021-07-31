@@ -97,7 +97,61 @@ This will evaluate to
 ```
 
 Custom variables also work with renderFile of course, just input your variables into renderFile's second argument :D
+
+### Dynamic Elements
+
+You can add Elements to the children of an object dynamically!
+
+#### `For` example:
+
+```js
+const { Poggies } = require("poggies");
+const wow = new Poggies(`
+div[Wow!]<for(word of words){
+  span[>word]
+}>`);
+wow
+	.render({
+		words: [" A ", "dynamic ", "page!"]
+	})
+	.then(html => {
+		console.log(html);
+	});
+```
+
+Will loop over the `words` parameter and add a span for each word in it! Result:
+
+```html
+<div>Wow!<span> A </span><span>dynamic </span><span>page!</span></div>
+```
+
+<div>Wow!<span> A </span><span>dynamic </span><span>page!</span></div>
+
+#### `If` example:
+
+```js
+const { Poggies } = require("poggies");
+const wow = new Poggies(`
+span<if(chance){
+  span[You're a lucky one.]
+}>`);
+wow
+	.render({
+		chance: Math.random() < 0.5
+	})
+	.then(html => {
+		console.log(html);
+	});
+```
+
+Will give you a 50% chance of seeing "You're a lucky one."! Result:
+
+`<span/>` OR `<span><span>You're a lucky one.</span></span>`
+
+<blink><span>You're a lucky one.</span></blink>
+
 <br/><br/><br/>
+
 ### Extras
 
 <img src="https://cdn.betterttv.net/emote/5d38aaa592fc550c2d5996b8/1x" alt="peepoClap" align="left"/> You made it to the bottom of the README, it's time for some neat extras!

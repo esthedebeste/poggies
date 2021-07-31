@@ -6,7 +6,7 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
  * @returns {Promise} Result
  */
 module.exports = (code, opts) =>
-	AsyncFunction(
-		...Object.keys(opts),
-		`return ${code};`
-	)(...Object.values(opts));
+	AsyncFunction(...Object.keys(opts), `return ${code};`).apply(
+		null,
+		Object.values(opts)
+	);

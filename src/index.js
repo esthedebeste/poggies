@@ -53,7 +53,7 @@ class Attributes {
 			while (isWS(source[index]) && index < source.length) index++;
 			if (source[index] === ")") {
 				return {
-					index: index + 1,
+					index: index,
 					attrs: new Attributes(attrs)
 				};
 			}
@@ -90,10 +90,129 @@ class Attributes {
 	}
 }
 
+class ForElement {
+	constructor(children, valueName, arrayName) {
+		this.children = children;
+		this.valueName = valueName;
+		this.arrayName = arrayName;
+	}
+
+	/**
+	 * Converts this to HTML
+	 * @param {{[x: string]: any}} passing Passed variables
+	 * @returns {Promise<string>} The HTML
+	 */
+	async htmlify(passing) {
+		if (!(this.arrayName in passing))
+			throw new Error("Array not found in parameters.");
+		const array = passing[this.arrayName];
+		if (array == null || typeof array[Symbol.iterator] !== "function")
+			throw new Error("Object passed isn't iterable.");
+		let returning = "";
+		const passingCopy = { ...passing };
+		for (const value of passing[this.arrayName]) {
+			passingCopy[this.valueName] = value;
+			for (const child of this.children)
+				returning += await child.htmlify(passingCopy);
+		}
+		return returning;
+	}
+	/**
+	 * Creates an For Element from Poggies syntax, starting at (
+	 * @param {string} source The source string to parse from
+	 * @param {number} index The index to start parsing from
+	 * @returns {{element: ForElement, index: number}} The resulting ForElement, and the index at which it ended.
+	 */
+	static from(source, index) {
+		const len = source.length;
+		if (source[index++] !== "(") throw new Error("Expected ( after for");
+		while (isWS(source[index]) && index < len) index++;
+		let valueName = "";
+		for (; index < len && isTag(source[index]); index++)
+			valueName += source[index];
+		while (isWS(source[index]) && index < len) index++;
+		let forType = "";
+		for (; index < len && isTag(source[index]); index++) forType += source[index];
+		if (forType != "of")
+			throw new Error(`Invalid for method "${forType}" (expected "of")`);
+		while (isWS(source[index]) && index < len) index++;
+		let arrayName = "";
+		for (; index < len && isTag(source[index]); index++)
+			arrayName += source[index];
+		while (isWS(source[index]) && index < len) index++;
+		if (source[index++] !== ")")
+			throw new Error("Expected closing ) in for statement");
+		if (source[index++] !== "{")
+			throw new Error("Expected { after for statement");
+		// Children
+		let children = [];
+		while (isWS(source[index]) && index < len) index++;
+		while (isTag(source[index])) {
+			let element;
+			({ element, index } = Element.from(source, index));
+			children.push(element);
+			index++;
+			while (isWS(source[index]) && index < len) index++;
+		}
+		return { element: new ForElement(children, valueName, arrayName), index };
+	}
+}
+
+class IfElement {
+	constructor(children, condition) {
+		this.children = children;
+		this.condition = condition;
+	}
+
+	/**
+	 * Converts this to HTML
+	 * @param {{[x: string]: any}} passing Passed variables
+	 * @returns {Promise<string>} The HTML
+	 */
+	async htmlify(passing) {
+		if (!(this.condition in passing))
+			throw new Error("Condition not found in parameters.");
+		if (!passing[this.condition]) return "";
+		let returning = "";
+		for (const child of this.children) returning += await child.htmlify(passing);
+		return returning;
+	}
+
+	/**
+	 * Creates an If Element from Poggies syntax, starting at (
+	 * @param {string} source The source string to parse from
+	 * @param {number} index The index to start parsing from
+	 * @returns {{element: IfElement, index: number}} The resulting IfElement, and the index at which it ended.
+	 */
+	static from(source, index) {
+		const len = source.length;
+		if (source[index++] !== "(") throw new Error("Expected ( after if");
+		while (isWS(source[index]) && index < len) index++;
+		let condition = "";
+		for (; index < len && isTag(source[index]); index++)
+			condition += source[index];
+		while (isWS(source[index]) && index < len) index++;
+		if (source[index++] !== ")")
+			throw new Error(`Expected ) after "${condition}"`);
+		if (source[index++] !== "{") throw new Error("Expected { after if statement");
+		// Children
+		let children = [];
+		while (isWS(source[index]) && index < len) index++;
+		while (isTag(source[index])) {
+			let element;
+			({ element, index } = Element.from(source, index));
+			children.push(element);
+			index++;
+			while (isWS(source[index]) && index < len) index++;
+		}
+		return { element: new IfElement(children, condition), index };
+	}
+}
+
 class Element {
 	/**
 	 * @param {string} tag Element tag
-	 * @param {Element[]} children The element's children
+	 * @param {(Element|ForElement|IfElement)[]} children The element's children
 	 * @param {string} id The element's id field
 	 * @param {string[]} classList The element's classes
 	 * @param {Statement} content Element's inner text
@@ -114,6 +233,29 @@ class Element {
 		this.content = content;
 		this.attributes = attributes;
 	}
+
+	/**
+	 * Converts this to HTML
+	 * @param {{[x: string]: any}} passing Passed variables
+	 * @returns {Promise<string>} The HTML
+	 */
+	async htmlify(passing) {
+		let result = `<${this.tag}`;
+		if (this.id) result += ` id="${this.id}"`;
+		if (this.classList.length > 0)
+			result += ` class="${this.classList.join(" ")}"`;
+		for (let key in this.attributes) {
+			const value = await this.attributes[key].get(passing);
+			if (value === "") result += ` ${key}`;
+			else result += ` ${key}="${value}"`;
+		}
+		const content = await this.content.get(passing);
+		if (content.length === 0 && this.children.length === 0) return result + "/>";
+		result += `>${await this.content.get(passing)}`;
+		for (let child of this.children) result += await child.htmlify(passing);
+		result += `</${this.tag}>`;
+		return result;
+	}
 	/**
 	 * Creates an Element from Poggies syntax.
 	 * @param {string} source The source string to parse from
@@ -127,7 +269,6 @@ class Element {
 		for (; index < len && isTag(source[index]); index++)
 			returning.tag += source[index];
 		while (isWS(source[index]) && index < len) index++;
-		if (isTag(source[index])) return { element: returning, index: index - 1 };
 		if (source[index] === "#") {
 			index++;
 			for (; index < len && isTag(source[index]); index++)
@@ -137,14 +278,16 @@ class Element {
 		while (source[index] === ".") {
 			index++;
 			let clas = "";
-			for (; index < len && isTag(source[index]); index++)
-				clas += source[index];
+			for (; index < len && isTag(source[index]); index++) clas += source[index];
 			returning.classList.push(clas);
 			while (isWS(source[index]) && index < len) index++;
 		}
 		// Attributes
-		if (source[index] === "(")
+		if (source[index] === "(") {
 			({ index, attrs: returning.attributes } = Attributes.from(source, index));
+			index++;
+			while (isWS(source[index]) && index < len) index++;
+		}
 		// Content
 		if (source[index] === "[") {
 			let content = "";
@@ -155,43 +298,51 @@ class Element {
 				else if (source[index] === "]") break;
 				else content += source[index];
 			returning.content = Statement.from(content.trim());
+			index++;
 			while (isWS(source[index]) && index < len) index++;
 		}
 
 		// Children
 		if (source[index] === "{") {
-			while (isWS(source[++index]) && index < source.length);
+			index++;
+			while (isWS(source[index]) && index < len) index++;
 			while (isTag(source[index])) {
 				let element;
 				({ element, index } = Element.from(source, index));
 				returning.children.push(element);
-				while (isWS(source[++index]) && index < source.length);
+				index++;
+				while (isWS(source[index]) && index < len) index++;
 			}
+			index++;
+			while (isWS(source[index]) && index < len) index++;
 		}
-		return { element: returning, index };
+
+		// Dynamics (if, or)
+		if (source[index] === "<") {
+			index++;
+			while (source[index] !== ">") {
+				while (isWS(source[index]) && index < len) index++;
+				let type = "";
+				for (; index < len && isTag(source[index]); index++) type += source[index];
+				while (isWS(source[index]) && index < len) index++;
+				let element;
+				if (type === "for") ({ element, index } = ForElement.from(source, index));
+				else if (type === "if")
+					({ element, index } = IfElement.from(source, index));
+				else
+					throw new Error(
+						`Invalid dynamic "${type}" (did you mean to use {} instead of <>?)}`
+					);
+				returning.children.push(element);
+				index++;
+				while (isWS(source[index]) && index < len) index++;
+			}
+			index++;
+			while (isWS(source[index]) && index < len) index++;
+		}
+		return { element: returning, index: index - 1 };
 	}
 }
-/**
- * Converts an Element to HTML
- * @param {Element} element Element to HTMLify
- * @param {{[x: string]: any}} passing Passed variables
- * @returns {Promise<string>} The HTML
- */
-const htmlify = async (element, passing) => {
-	let result = `<${element.tag}`;
-	if (element.id) result += ` id="${element.id}"`;
-	if (element.classList.length > 0)
-		result += ` class="${element.classList.join(" ")}"`;
-	for (let key in element.attributes) {
-		const value = await element.attributes[key].get(passing);
-		if (value === "") result += ` ${key}`;
-		else result += ` ${key}="${value}"`;
-	}
-	result += `>${await element.content.get(passing)}`;
-	for (let child of element.children) result += await htmlify(child, passing);
-	result += `</${element.tag}>`;
-	return result;
-};
 
 class Poggies {
 	/**
@@ -206,12 +357,13 @@ class Poggies {
 	constructor(source) {
 		this.parsed = [];
 		let index = 0;
-		while (isWS(source[index]) && index < len) index++;
+		while (isWS(source[index]) && index < source.length) index++;
 		while (isTag(source[index]) && index < source.length) {
 			let element;
 			({ element, index } = Element.from(source, index));
 			this.parsed.push(element);
-			while (isWS(source[++index]) && index < source.length);
+			index++;
+			while (isWS(source[index]) && index < source.length) index++;
 		}
 	}
 	/**
@@ -221,13 +373,12 @@ class Poggies {
 	 */
 	async render(passing = {}) {
 		let result = ``;
-		for (const element of this.parsed)
-			result += await htmlify(element, passing);
+		for (const element of this.parsed) result += await element.htmlify(passing);
 		return result;
 	}
 }
 
-const fileCache = {};
+const fileCache = new Map();
 /**
  * Renders a Poggies file with some given variables
  * @param {string} file File path
@@ -235,9 +386,9 @@ const fileCache = {};
  * @returns {Promise<string>} The HTML
  */
 const renderFile = (file, passing) => {
-	if (!(file in fileCache))
-		fileCache[file] = new Poggies(readFileSync(file).toString());
-	return fileCache[file].render(passing);
+	if (!fileCache.has(file))
+		fileCache.set(file, new Poggies(readFileSync(file).toString()));
+	return fileCache.get(file).render(passing);
 };
 // Support for express templating
 const __express = (file, passing, _options, callback) =>
