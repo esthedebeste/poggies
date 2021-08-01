@@ -2,6 +2,21 @@ const { readFileSync } = require("fs");
 const exec = require("./executor.js");
 const isTag = a => /^[\w-]+$/.test(a);
 const isWS = a => /^\s+$/.test(a);
+const voidElements = [
+	"area",
+	"base",
+	"br",
+	"col",
+	"hr",
+	"img",
+	"input",
+	"link",
+	"meta",
+	"param",
+	"command",
+	"keygen",
+	"source"
+];
 class Statement {
 	/**
 	 * @param {string} value The value
@@ -132,7 +147,8 @@ class ForElement {
 			valueName += source[index];
 		while (isWS(source[index]) && index < len) index++;
 		let forType = "";
-		for (; index < len && isTag(source[index]); index++) forType += source[index];
+		for (; index < len && isTag(source[index]); index++)
+			forType += source[index];
 		if (forType != "of")
 			throw new Error(`Invalid for method "${forType}" (expected "of")`);
 		while (isWS(source[index]) && index < len) index++;
@@ -174,7 +190,8 @@ class IfElement {
 			throw new Error("Condition not found in parameters.");
 		if (!passing[this.condition]) return "";
 		let returning = "";
-		for (const child of this.children) returning += await child.htmlify(passing);
+		for (const child of this.children)
+			returning += await child.htmlify(passing);
 		return returning;
 	}
 
@@ -194,7 +211,8 @@ class IfElement {
 		while (isWS(source[index]) && index < len) index++;
 		if (source[index++] !== ")")
 			throw new Error(`Expected ) after "${condition}"`);
-		if (source[index++] !== "{") throw new Error("Expected { after if statement");
+		if (source[index++] !== "{")
+			throw new Error("Expected { after if statement");
 		// Children
 		let children = [];
 		while (isWS(source[index]) && index < len) index++;
@@ -250,8 +268,14 @@ class Element {
 			else result += ` ${key}="${value}"`;
 		}
 		const content = await this.content.get(passing);
-		if (content.length === 0 && this.children.length === 0) return result + "/>";
-		result += `>${await this.content.get(passing)}`;
+		// Void Elements (Elements that shouldn't have content)
+		if (
+			voidElements.includes(this.tag) &&
+			content.length === 0 &&
+			this.children.length === 0
+		)
+			return result + "/>";
+		result += `>${content}`;
 		for (let child of this.children) result += await child.htmlify(passing);
 		result += `</${this.tag}>`;
 		return result;
@@ -278,7 +302,8 @@ class Element {
 		while (source[index] === ".") {
 			index++;
 			let clas = "";
-			for (; index < len && isTag(source[index]); index++) clas += source[index];
+			for (; index < len && isTag(source[index]); index++)
+				clas += source[index];
 			returning.classList.push(clas);
 			while (isWS(source[index]) && index < len) index++;
 		}
@@ -323,10 +348,12 @@ class Element {
 			while (source[index] !== ">") {
 				while (isWS(source[index]) && index < len) index++;
 				let type = "";
-				for (; index < len && isTag(source[index]); index++) type += source[index];
+				for (; index < len && isTag(source[index]); index++)
+					type += source[index];
 				while (isWS(source[index]) && index < len) index++;
 				let element;
-				if (type === "for") ({ element, index } = ForElement.from(source, index));
+				if (type === "for")
+					({ element, index } = ForElement.from(source, index));
 				else if (type === "if")
 					({ element, index } = IfElement.from(source, index));
 				else
