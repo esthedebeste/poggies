@@ -2,6 +2,7 @@ const { readFileSync } = require("fs");
 const exec = require("./executor.js");
 const isTag = a => /^[\w-]+$/.test(a);
 const isWS = a => /^\s+$/.test(a);
+/** Elements that shouldn't have a closing tag */
 const voidElements = [
 	"area",
 	"base",
@@ -106,6 +107,11 @@ class Attributes {
 }
 
 class ForElement {
+	/**
+	 * @param {(Element|ForElement|IfElement)[]} children
+	 * @param {string} valueName
+	 * @param {string} arrayName
+	 */
 	constructor(children, valueName, arrayName) {
 		this.children = children;
 		this.valueName = valueName;
@@ -175,6 +181,10 @@ class ForElement {
 }
 
 class IfElement {
+	/**
+	 * @param {(Element|ForElement|IfElement)[]} children
+	 * @param {string} condition JS Code to test
+	 */
 	constructor(children, condition) {
 		this.children = children;
 		this.condition = condition;
@@ -186,9 +196,7 @@ class IfElement {
 	 * @returns {Promise<string>} The HTML
 	 */
 	async htmlify(passing) {
-		if (!(this.condition in passing))
-			throw new Error("Condition not found in parameters.");
-		if (!passing[this.condition]) return "";
+		if (!(await exec(this.condition, passing))) return "";
 		let returning = "";
 		for (const child of this.children)
 			returning += await child.htmlify(passing);
@@ -206,11 +214,15 @@ class IfElement {
 		if (source[index++] !== "(") throw new Error("Expected ( after if");
 		while (isWS(source[index]) && index < len) index++;
 		let condition = "";
-		for (; index < len && isTag(source[index]); index++)
+		let opening = 1;
+		let closing = 0;
+		while (index < source.length && opening > closing) {
+			if (source[index] === "(") opening++;
+			else if (source[index] === ")") closing++;
 			condition += source[index];
-		while (isWS(source[index]) && index < len) index++;
-		if (source[index++] !== ")")
-			throw new Error(`Expected ) after "${condition}"`);
+			index++;
+		}
+		condition = condition.slice(0, -1);
 		if (source[index++] !== "{")
 			throw new Error("Expected { after if statement");
 		// Children
@@ -226,6 +238,19 @@ class IfElement {
 		return { element: new IfElement(children, condition), index };
 	}
 }
+
+const htmlescapes = {
+	"&": "&amp;",
+	'"': "&quot;",
+	"<": "&lt;",
+	">": "&gt;"
+};
+/**
+ * @param {string} unescaped Unescaped text
+ * @returns {string} The same text but HTML-escaped (Similar to DOM Element.innerText)
+ */
+const htmlescape = unescaped =>
+	unescaped.replace(/[&"<>]/g, c => htmlescapes[c]);
 
 class Element {
 	/**
@@ -267,7 +292,8 @@ class Element {
 			if (value === "") result += ` ${key}`;
 			else result += ` ${key}="${value}"`;
 		}
-		const content = await this.content.get(passing);
+		let content = await this.content.get(passing);
+		if (typeof content !== "string") content = JSON.stringify(content);
 		// Void Elements (Elements that shouldn't have content)
 		if (
 			voidElements.includes(this.tag) &&
@@ -275,7 +301,7 @@ class Element {
 			this.children.length === 0
 		)
 			return result + "/>";
-		result += `>${content}`;
+		result += `>${htmlescape(content)}`;
 		for (let child of this.children) result += await child.htmlify(passing);
 		result += `</${this.tag}>`;
 		return result;
@@ -322,7 +348,7 @@ class Element {
 				else if (source[index] === "\\") ignoreNext = true;
 				else if (source[index] === "]") break;
 				else content += source[index];
-			returning.content = Statement.from(content.trim());
+			returning.content = Statement.from(content);
 			index++;
 			while (isWS(source[index]) && index < len) index++;
 		}
@@ -376,13 +402,12 @@ class Poggies {
 	 * Root element's children.
 	 * @type {Element[]}
 	 */
-	parsed;
+	parsed = [];
 	/**
 	 * Initializes a Poggies document
 	 * @param {string} source Poggies code to parse
 	 */
 	constructor(source) {
-		this.parsed = [];
 		let index = 0;
 		while (isWS(source[index]) && index < source.length) index++;
 		while (isTag(source[index]) && index < source.length) {

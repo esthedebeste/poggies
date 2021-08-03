@@ -26,7 +26,7 @@ html(lang="en-US"){
         p.red(hidden)[If this is visible, attributes aren't working properly.]
         br
     }
-    <if(ifstatementswork){
+    <if(ifstatements.working()){
         div[Woah, if statements work!]
     }
     for(word of sentence){

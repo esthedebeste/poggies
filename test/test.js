@@ -10,7 +10,7 @@ renderFile("test.pog", {
 	site: "example",
 	tld: "com",
 	sentence: ["Woah, ", "for ", "of ", "loops ", "work!"],
-	ifstatementswork: true
+	ifstatements: { working: () => true }
 }).then(file => {
 	ansi(33, 1);
 	console.log(
@@ -21,7 +21,7 @@ renderFile("test.pog", {
 		site: "example",
 		tld: "org",
 		sentence: ["Woah, ", "for ", "of ", "loops ", "work!"],
-		ifstatementswork: true
+		ifstatements: { working: () => true }
 	}).then(file => {
 		ansi(32, 1);
 		console.log(
