@@ -1,12 +1,11 @@
-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const { Script } = require("vm");
 /**
- * Executes code, supports async/await syntax.
- * @param {string} code Code to execute
- * @param {[x: string]: any} opts Passed variables
+ * Executes code, doesn't support async/await syntax.
+ * @param {Script} script Code to execute
+ * @param {[x: string]: any} opts Passed variables (contextified!)
  * @returns {Promise} Result
  */
-module.exports = (code, opts) =>
-	AsyncFunction(...Object.keys(opts), `return ${code};`).apply(
-		null,
-		Object.values(opts)
-	);
+module.exports = {
+	compile: code => new Script(code),
+	exec: (script, opts) => script.runInContext(opts)
+};

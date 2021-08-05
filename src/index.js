@@ -1,5 +1,6 @@
 const { readFileSync } = require("fs");
-const exec = require("./executor.js");
+const { createContext, Script } = require("vm");
+const { compile, exec } = require("./executor.js");
 const isTag = a => /^[\w-]+$/.test(a);
 const isWS = a => /^\s+$/.test(a);
 /** Elements that shouldn't have a closing tag */
@@ -20,12 +21,10 @@ const voidElements = [
 ];
 class Statement {
 	/**
-	 * @param {string} value The value
-	 * @param {boolean} evaluate Whether to execute value as JS code
+	 * @param {string | Script} value The value
 	 */
-	constructor(value = "", evaluate = false) {
+	constructor(value = "") {
 		this.value = value;
-		this.evaluate = evaluate;
 	}
 	/**
 	 * Evaluates the value.
@@ -33,7 +32,7 @@ class Statement {
 	 * @returns {Promise}
 	 */
 	get(opts) {
-		if (this.evaluate) return exec(this.value, opts);
+		if (this.value instanceof Script) return exec(this.value, opts);
 		return this.value;
 	}
 	/**
@@ -42,8 +41,7 @@ class Statement {
 	 */
 	static from(source) {
 		return new Statement(
-			source.startsWith(">") ? source.slice(1) : source,
-			source.startsWith(">")
+			source.startsWith(">") ? compile(source.slice(1)) : source
 		);
 	}
 }
@@ -166,11 +164,12 @@ class ForElement {
 		if (array == null || typeof array[Symbol.iterator] !== "function")
 			throw new Error("Object passed isn't iterable.");
 		let returning = "";
-		const passingCopy = { ...passing };
+		const orig = passing[this.valueName];
 		for (const value of passing[this.arrayName]) {
-			passingCopy[this.valueName] = value;
-			returning += await this.children.htmlify(passingCopy);
+			passing[this.valueName] = value;
+			returning += await this.children.htmlify(passing);
 		}
+		passing[this.valueName] = orig;
 		return returning;
 	}
 	/**
@@ -213,7 +212,7 @@ class IfElement {
 	 */
 	constructor(children, condition) {
 		this.children = children;
-		this.condition = condition;
+		this.condition = compile(condition);
 	}
 
 	/**
@@ -452,6 +451,7 @@ class Poggies {
 	 * @returns {Promise<string>} The HTML
 	 */
 	async render(passing = {}) {
+		passing = createContext(passing);
 		let result = "";
 		for (const element of this.parsed) result += await element.htmlify(passing);
 		return result;
