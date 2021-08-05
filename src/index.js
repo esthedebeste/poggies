@@ -146,12 +146,12 @@ class ForElement {
 	/**
 	 * @param {ChildNodes} children
 	 * @param {string} valueName
-	 * @param {string} arrayName
+	 * @param {string} arrayPath
 	 */
-	constructor(children, valueName, arrayName) {
+	constructor(children, valueName, arrayPath) {
 		this.children = children;
 		this.valueName = valueName;
-		this.arrayName = arrayName;
+		this.arrayPath = arrayPath;
 	}
 
 	/**
@@ -160,14 +160,15 @@ class ForElement {
 	 * @returns {Promise<string>} The HTML
 	 */
 	async htmlify(passing) {
-		if (!(this.arrayName in passing))
-			throw new Error("Array not found in parameters.");
-		const array = passing[this.arrayName];
+		let array = passing;
+		for (const part of this.arrayPath)
+			if (part in array) array = array[part];
+			else throw new Error("Array not found in parameters.");
 		if (array == null || typeof array[Symbol.iterator] !== "function")
 			throw new Error("Object passed isn't iterable.");
 		let returning = "";
 		const passingCopy = { ...passing };
-		for (const value of passing[this.arrayName]) {
+		for (const value of array) {
 			passingCopy[this.valueName] = value;
 			returning += await this.children.htmlify(passingCopy);
 		}
@@ -193,16 +194,22 @@ class ForElement {
 		if (forType != "of")
 			throw new Error(`Invalid for method "${forType}" (expected "of")`);
 		while (isWS(source[index]) && index < len) index++;
-		let arrayName = "";
-		for (; index < len && isTag(source[index]); index++)
-			arrayName += source[index];
+		let arrayPath = [];
+		index--;
+		do {
+			index++;
+			let arrayName = "";
+			for (; index < len && isTag(source[index]); index++)
+				arrayName += source[index];
+			arrayPath.push(arrayName);
+		} while (source[index] === ".");
 		while (isWS(source[index]) && index < len) index++;
 		if (source[index++] !== ")")
 			throw new Error("Expected closing ) in for statement");
 		// Children
 		let children;
 		({ children, index } = ChildNodes.from(source, index));
-		return { element: new ForElement(children, valueName, arrayName), index };
+		return { element: new ForElement(children, valueName, arrayPath), index };
 	}
 }
 

@@ -28,7 +28,7 @@ html(lang="en-US"){
     }
     <if(ifstatements.working())[Woah, if statements work!]>
     {br}
-    <for(word of sentence)[>word]>
+    <for(word of forTest.sentence)[>word]>
     {br}
     <for(double of doubleTest)<
        if(double.show)[>double.content]

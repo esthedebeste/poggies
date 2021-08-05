@@ -9,7 +9,7 @@ const ansi = (...n) => process.stdout.write(`\x1b[${n.join(";")}m`, ``);
 renderFile("test.pog", {
 	site: "example",
 	tld: "com",
-	sentence: ["Woah, ", "for ", "of ", "loops ", "work!"],
+	forTest: { sentence: ["Woah, ", "for ", "of ", "loops ", "work!"] },
 	ifstatements: { working: () => true },
 	doubleTest: [
 		{ show: true, content: "For and If combined is " },
@@ -25,7 +25,7 @@ renderFile("test.pog", {
 	renderFile("test.pog", {
 		site: "example",
 		tld: "org",
-		sentence: ["Woah, ", "for ", "of ", "loops ", "work!"],
+		forTest: { sentence: ["Woah, ", "for ", "of ", "loops ", "work!"] },
 		ifstatements: { working: () => true },
 		doubleTest: [
 			{ show: true, content: "For and If combined is " },
