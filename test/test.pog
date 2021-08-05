@@ -26,12 +26,13 @@ html(lang="en-US"){
         p.red(hidden)[If this is visible, attributes aren't working properly.]
         br
     }
-    <if(ifstatements.working()){
-        div[Woah, if statements work!]
-    }
-    for(word of sentence){
-        span[>word]
-    }>
+    <if(ifstatements.working())[Woah, if statements work!]>
+    {br}
+    <for(word of sentence)[>word]>
+    {br}
+    <for(double of doubleTest)<
+       if(double.show)[>double.content]
+    >>
 }
 multielemtest{
     div[Multiple Parent Elements work!]

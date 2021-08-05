@@ -107,9 +107,7 @@ You can add Elements to the children of an object dynamically!
 ```js
 const { Poggies } = require("poggies");
 const wow = new Poggies(`
-div[Wow!]<for(word of words){
-  span[>word]
-}>`);
+div[Wow!]<for(word of words)[>word]>`);
 wow
 	.render({
 		words: [" A ", "dynamic ", "page!"]
@@ -122,19 +120,17 @@ wow
 Will loop over the `words` parameter and add a span for each word in it! Result:
 
 ```html
-<div>Wow!<span> A </span><span>dynamic </span><span>page!</span></div>
+<div>Wow! A dynamic page!</div>
 ```
 
-<div>Wow!<span> A </span><span>dynamic </span><span>page!</span></div>
+<div>Wow! A dynamic page!</div>
 
 #### `If` example:
 
 ```js
 const { Poggies } = require("poggies");
 const wow = new Poggies(`
-span<if(chance){
-  span[You're a lucky one.]
-}>`);
+span<if(chance)[You're a lucky one.]>`);
 wow
 	.render({
 		chance: Math.random() < 0.5
@@ -146,7 +142,7 @@ wow
 
 Will give you a 50% chance of seeing "You're a lucky one."! Result:
 
-`<span/>` OR `<span><span>You're a lucky one.</span></span>`
+`<span></span>` OR `<span>You're a lucky one.</span>`
 
 <blink><span>You're a lucky one.</span></blink>
 
@@ -161,6 +157,8 @@ Will give you a 50% chance of seeing "You're a lucky one."! Result:
   `h1#woah.red.bold[I'm red, I'm bold, and my ID is woah!]`
 - Attributes can have no value, just like in normal HTML! For example:  
   `h1(hidden)[You can't see me]`
+- You can stack [], {}, and <>! For example, to put a line break in the middle of a span:  
+  `span[Line 1]{br}[Line 2]` ==> `<span>Line 1<br/>Line 2</span>`
 - Poggies also supports ESM, so you can also import things using `import { ____ } from "poggies"`!
 - renderFile actually caches files, so your poor CPU doesn't have to parse everything again!  
   In a small test this lead to a pretty decent ~4ms to ~0.2ms improvement!

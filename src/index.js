@@ -62,8 +62,6 @@ class Attributes {
 	 * @returns {{attrs: Attributes, index: number}} The resulting attributes, and the index at which it ended.
 	 */
 	static from(source, index) {
-		// Index is the index of the starting (, which we can skip for parsing.
-		index++;
 		const attrs = {};
 		while (index < source.length) {
 			while (isWS(source[index]) && index < source.length) index++;
@@ -106,9 +104,47 @@ class Attributes {
 	}
 }
 
+class TextNode {
+	/**
+	 * @param {Statement} content
+	 */
+	constructor(content) {
+		this.content = content;
+	}
+	/**
+	 * Creates a TextNode from Poggies syntax.
+	 * @param {string} source The source string to parse from
+	 * @param {number} index The index to start parsing from
+	 * @returns {{element: TextNode, index: number}} The resulting element, and the index at which it ended.
+	 */
+	static from(source, index) {
+		let content = "";
+		let ignoreNext = false;
+		while (++index < source.length)
+			if (ignoreNext) ignoreNext = false;
+			else if (source[index] === "\\") ignoreNext = true;
+			else if (source[index] === "]") break;
+			else content += source[index];
+		return {
+			element: new TextNode(Statement.from(content)),
+			index
+		};
+	}
+	/**
+	 * Converts this to HTML
+	 * @param {{[x: string]: any}} passing Passed variables
+	 * @returns {Promise<string>} The HTML
+	 */
+	async htmlify(passing) {
+		let content = await this.content.get(passing);
+		if (typeof content !== "string") content = JSON.stringify(content);
+		return htmlescape(content);
+	}
+}
+
 class ForElement {
 	/**
-	 * @param {(Element|ForElement|IfElement)[]} children
+	 * @param {ChildNodes} children
 	 * @param {string} valueName
 	 * @param {string} arrayName
 	 */
@@ -133,8 +169,7 @@ class ForElement {
 		const passingCopy = { ...passing };
 		for (const value of passing[this.arrayName]) {
 			passingCopy[this.valueName] = value;
-			for (const child of this.children)
-				returning += await child.htmlify(passingCopy);
+			returning += await this.children.htmlify(passingCopy);
 		}
 		return returning;
 	}
@@ -164,18 +199,9 @@ class ForElement {
 		while (isWS(source[index]) && index < len) index++;
 		if (source[index++] !== ")")
 			throw new Error("Expected closing ) in for statement");
-		if (source[index++] !== "{")
-			throw new Error("Expected { after for statement");
 		// Children
-		let children = [];
-		while (isWS(source[index]) && index < len) index++;
-		while (isTag(source[index])) {
-			let element;
-			({ element, index } = Element.from(source, index));
-			children.push(element);
-			index++;
-			while (isWS(source[index]) && index < len) index++;
-		}
+		let children;
+		({ children, index } = ChildNodes.from(source, index));
 		return { element: new ForElement(children, valueName, arrayName), index };
 	}
 }
@@ -196,11 +222,9 @@ class IfElement {
 	 * @returns {Promise<string>} The HTML
 	 */
 	async htmlify(passing) {
-		if (!(await exec(this.condition, passing))) return "";
-		let returning = "";
-		for (const child of this.children)
-			returning += await child.htmlify(passing);
-		return returning;
+		if (await exec(this.condition, passing))
+			return await this.children.htmlify(passing);
+		return "";
 	}
 
 	/**
@@ -223,18 +247,9 @@ class IfElement {
 			index++;
 		}
 		condition = condition.slice(0, -1);
-		if (source[index++] !== "{")
-			throw new Error("Expected { after if statement");
 		// Children
-		let children = [];
-		while (isWS(source[index]) && index < len) index++;
-		while (isTag(source[index])) {
-			let element;
-			({ element, index } = Element.from(source, index));
-			children.push(element);
-			index++;
-			while (isWS(source[index]) && index < len) index++;
-		}
+		let children;
+		({ children, index } = ChildNodes.from(source, index));
 		return { element: new IfElement(children, condition), index };
 	}
 }
@@ -252,13 +267,91 @@ const htmlescapes = {
 const htmlescape = unescaped =>
 	unescaped.replace(/[&"<>]/g, c => htmlescapes[c]);
 
+class ChildNodes {
+	/**
+	 * @param {TextNode[]} nodes The nodes
+	 */
+	constructor(nodes) {
+		this.nodes = nodes;
+	}
+	/**
+	 * Converts this to HTML
+	 * @param {{[x: string]: any}} passing Passed variables
+	 * @returns {Promise<string>} The HTML
+	 */
+	async htmlify(passing) {
+		let returning = "";
+		for (const node of this.nodes) returning += await node.htmlify(passing);
+		return returning;
+	}
+	/**
+	 * Creates an For Element from Poggies syntax, starting at (
+	 * @param {string} source The source string to parse from
+	 * @param {number} index The index to start parsing from
+	 * @returns {{children: ChildNodes, index: number}} The resulting ForElement, and the index at which it ended.
+	 */
+	static from(source, index) {
+		const len = source.length;
+		while (isWS(source[index]) && index < len) index++;
+		let nodes = [];
+		while (index < source.length)
+			if (source[index] === "[") {
+				const { index: i, element: node } = TextNode.from(source, index);
+				nodes.push(node);
+				index = i + 1;
+				while (isWS(source[index]) && index < len) index++;
+			}
+
+			// Children
+			else if (source[index] === "{") {
+				index++;
+				while (isWS(source[index]) && index < len) index++;
+				while (isTag(source[index])) {
+					let element;
+					({ element, index } = Element.from(source, index));
+					nodes.push(element);
+				}
+				index++;
+				while (isWS(source[index]) && index < len) index++;
+			}
+
+			// Dynamics (if, or)
+			else if (source[index] === "<") {
+				index++;
+				while (source[index] !== ">") {
+					while (isWS(source[index]) && index < len) index++;
+					let type = "";
+					for (; index < len && isTag(source[index]); index++)
+						type += source[index];
+					while (isWS(source[index]) && index < len) index++;
+					let element;
+					if (type === "for")
+						({ element, index } = ForElement.from(source, index));
+					else if (type === "if")
+						({ element, index } = IfElement.from(source, index));
+					else
+						throw new Error(
+							`Invalid dynamic "${type}" (did you mean to use {} instead of <>?)}`
+						);
+					while (isWS(source[index]) && index < len) index++;
+					nodes.push(element);
+				}
+				index++;
+				while (isWS(source[index]) && index < len) index++;
+			} else break;
+		return { children: new ChildNodes(nodes), index };
+	}
+	get size() {
+		return this.nodes.length;
+	}
+}
+
 class Element {
 	/**
 	 * @param {string} tag Element tag
-	 * @param {(Element|ForElement|IfElement)[]} children The element's children
+	 * @param {ChildNodes} children The element's children
 	 * @param {string} id The element's id field
 	 * @param {string[]} classList The element's classes
-	 * @param {Statement} content Element's inner text
 	 * @param {Attributes} attributes Element's attributes
 	 */
 	constructor(
@@ -266,14 +359,12 @@ class Element {
 		children = [],
 		id = "",
 		classList = [],
-		content = new Statement(),
 		attributes = new Attributes()
 	) {
 		this.tag = tag;
 		this.children = children;
 		this.id = id;
 		this.classList = classList;
-		this.content = content;
 		this.attributes = attributes;
 	}
 
@@ -292,19 +383,10 @@ class Element {
 			if (value === "") result += ` ${key}`;
 			else result += ` ${key}="${value}"`;
 		}
-		let content = await this.content.get(passing);
-		if (typeof content !== "string") content = JSON.stringify(content);
 		// Void Elements (Elements that shouldn't have content)
-		if (
-			voidElements.includes(this.tag) &&
-			content.length === 0 &&
-			this.children.length === 0
-		)
+		if (voidElements.includes(this.tag) && this.children.size === 0)
 			return result + "/>";
-		result += `>${htmlescape(content)}`;
-		for (let child of this.children) result += await child.htmlify(passing);
-		result += `</${this.tag}>`;
-		return result;
+		return result + `>${await this.children.htmlify(passing)}</${this.tag}>`;
 	}
 	/**
 	 * Creates an Element from Poggies syntax.
@@ -335,65 +417,13 @@ class Element {
 		}
 		// Attributes
 		if (source[index] === "(") {
+			index++;
 			({ index, attrs: returning.attributes } = Attributes.from(source, index));
 			index++;
 			while (isWS(source[index]) && index < len) index++;
 		}
-		// Content
-		if (source[index] === "[") {
-			let content = "";
-			let ignoreNext = false;
-			while (++index < len)
-				if (ignoreNext) ignoreNext = false;
-				else if (source[index] === "\\") ignoreNext = true;
-				else if (source[index] === "]") break;
-				else content += source[index];
-			returning.content = Statement.from(content);
-			index++;
-			while (isWS(source[index]) && index < len) index++;
-		}
-
-		// Children
-		if (source[index] === "{") {
-			index++;
-			while (isWS(source[index]) && index < len) index++;
-			while (isTag(source[index])) {
-				let element;
-				({ element, index } = Element.from(source, index));
-				returning.children.push(element);
-				index++;
-				while (isWS(source[index]) && index < len) index++;
-			}
-			index++;
-			while (isWS(source[index]) && index < len) index++;
-		}
-
-		// Dynamics (if, or)
-		if (source[index] === "<") {
-			index++;
-			while (source[index] !== ">") {
-				while (isWS(source[index]) && index < len) index++;
-				let type = "";
-				for (; index < len && isTag(source[index]); index++)
-					type += source[index];
-				while (isWS(source[index]) && index < len) index++;
-				let element;
-				if (type === "for")
-					({ element, index } = ForElement.from(source, index));
-				else if (type === "if")
-					({ element, index } = IfElement.from(source, index));
-				else
-					throw new Error(
-						`Invalid dynamic "${type}" (did you mean to use {} instead of <>?)}`
-					);
-				returning.children.push(element);
-				index++;
-				while (isWS(source[index]) && index < len) index++;
-			}
-			index++;
-			while (isWS(source[index]) && index < len) index++;
-		}
-		return { element: returning, index: index - 1 };
+		({ children: returning.children, index } = ChildNodes.from(source, index));
+		return { element: returning, index: index };
 	}
 }
 
@@ -414,8 +444,6 @@ class Poggies {
 			let element;
 			({ element, index } = Element.from(source, index));
 			this.parsed.push(element);
-			index++;
-			while (isWS(source[index]) && index < source.length) index++;
 		}
 	}
 	/**
@@ -424,7 +452,7 @@ class Poggies {
 	 * @returns {Promise<string>} The HTML
 	 */
 	async render(passing = {}) {
-		let result = ``;
+		let result = "";
 		for (const element of this.parsed) result += await element.htmlify(passing);
 		return result;
 	}

@@ -10,7 +10,12 @@ renderFile("test.pog", {
 	site: "example",
 	tld: "com",
 	sentence: ["Woah, ", "for ", "of ", "loops ", "work!"],
-	ifstatements: { working: () => true }
+	ifstatements: { working: () => true },
+	doubleTest: [
+		{ show: true, content: "For and If combined is " },
+		{ show: false, content: "not " },
+		{ show: true, content: "working!" }
+	]
 }).then(file => {
 	ansi(33, 1);
 	console.log(
@@ -21,7 +26,12 @@ renderFile("test.pog", {
 		site: "example",
 		tld: "org",
 		sentence: ["Woah, ", "for ", "of ", "loops ", "work!"],
-		ifstatements: { working: () => true }
+		ifstatements: { working: () => true },
+		doubleTest: [
+			{ show: true, content: "For and If combined is " },
+			{ show: false, content: "not " },
+			{ show: true, content: "working!" }
+		]
 	}).then(file => {
 		ansi(32, 1);
 		console.log(
