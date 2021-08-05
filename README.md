@@ -1,3 +1,5 @@
+<p align="center"><img src="https://cdn.betterttv.net/emote/5b457bbd0485f43277cecac0/3x"/></p>
+
 # poggies
 
 Poggies is a simple 0-dependencies HTML templating engine, with a very simple syntax.
@@ -117,7 +119,7 @@ wow
 	});
 ```
 
-Will loop over the `words` parameter and add a span for each word in it! Result:
+Will loop over the `words` parameter and add each word in it! Result:
 
 ```html
 <div>Wow! A dynamic page!</div>
@@ -157,9 +159,12 @@ Will give you a 50% chance of seeing "You're a lucky one."! Result:
   `h1#woah.red.bold[I'm red, I'm bold, and my ID is woah!]`
 - Attributes can have no value, just like in normal HTML! For example:  
   `h1(hidden)[You can't see me]`
+- If an attribute doesn't contain any spaces, you can insert it without quotes,  
+  `a(href=https://example.com/)[like this!]`  
+  <small>PS, if it does contain a ), then this won't work</small>
 - You can stack [], {}, and <>! For example, to put a line break in the middle of a span:  
   `span[Line 1]{br}[Line 2]` ==> `<span>Line 1<br/>Line 2</span>`
 - Poggies also supports ESM, so you can also import things using `import { ____ } from "poggies"`!
-- renderFile actually caches files, so your poor CPU doesn't have to parse everything again!  
+- renderFile caches files, so your poor CPU doesn't have to parse everything again!  
   In a small test this lead to a pretty decent ~4ms to ~0.2ms improvement!
 - Poggies has a bunch of JSDocs built in, meaning that your IDE will be able to show you a bit of a description about Poggies' functions and classes!

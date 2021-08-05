@@ -83,20 +83,25 @@ class Attributes {
 					evaluate = true;
 					index++;
 				}
-				if (source[index] !== `"`)
-					throw new Error(`Invalid attribute, no ending "`);
-				index++;
+				let singleWord = true;
+				if (source[index] === `"`) {
+					singleWord = false;
+					index++;
+				}
 				let escape = 0;
 				for (; index < source.length; index++) {
 					if (source[index] === "\\") escape++;
-					else if (source[index] === `"` && escape % 2 === 0) break;
-					else if (escape - 1 > 0) {
+					else if (singleWord && (source[index] === ")" || isWS(source[index])))
+						break;
+					else if (source[index] === `"` && escape % 2 === 0) {
+						index++;
+						break;
+					} else if (escape - 1 > 0) {
 						value += "\\".repeat(escape / 2);
 						escape = 0;
 						value += source[index];
 					} else value += source[index];
 				}
-				index++;
 			}
 			attrs[key] = new Statement(value, evaluate);
 		}
