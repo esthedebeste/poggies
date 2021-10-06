@@ -458,14 +458,17 @@ class Poggies {
 			this.parsed.push(element);
 		}
 	}
+	/** @typedef {{doctype?:"html"|string|false, cache?:boolean}} Options */
 	/**
 	 * Renders this Poggies document with some given variables
 	 * @param {{[x: string]: any}} passing Passed variables
+	 * @param {Options} options Options
 	 * @returns {Promise<string>} The HTML
 	 */
-	async render(passing = {}) {
+	async render(passing = {}, options = { doctype: "html" }) {
 		let result = "";
 		for (const element of this.parsed) result += await element.htmlify(passing);
+		if (options.doctype) result = `<!doctype ${options.doctype}>` + result;
 		return result;
 	}
 }
@@ -475,16 +478,20 @@ const fileCache = new Map();
  * Renders a Poggies file with some given variables
  * @param {string} file File path
  * @param {{[x: string]: any}} passing Passed variables
+ * @param {Options} options Options
  * @returns {Promise<string>} The HTML
  */
-const renderFile = (file, passing) => {
+const renderFile = (file, passing, options) => {
+	if (options.cache === false)
+		return new Poggies(readFileSync(file).toString()).render(passing, options);
 	if (!fileCache.has(file))
 		fileCache.set(file, new Poggies(readFileSync(file).toString()));
-	return fileCache.get(file).render(passing);
+	return fileCache.get(file).render(passing, options);
 };
-// Support for express templating
+/** Support for express templating */
 const __express = (file, passing, _options, callback) =>
-	renderFile(file, passing)
-		.then(result => callback(null, result))
-		.catch(err => callback(err));
+	renderFile(file, passing).then(
+		result => callback(null, result),
+		err => callback(err)
+	);
 module.exports = { Poggies, renderFile, __express };

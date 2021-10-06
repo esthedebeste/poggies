@@ -1,10 +1,11 @@
 {
 	"name": "poggies",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "A simple JavaScript templating engine",
 	"type": "commonjs",
 	"main": "./src/index.js",
 	"module": "./src/module.mjs",
+	"types": "./poggies.d.ts",
 	"scripts": {
 		"test": "cd test && node test.js"
 	},
@@ -15,6 +16,10 @@
 		"template",
 		"engine"
 	],
+	"exports": {
+		"require": "./src/index.js",
+		"import": "./src/module.mjs"
+	},
 	"author": "tbhmens",
 	"license": "MIT",
 	"bugs": {
