@@ -1,4 +1,4 @@
-import { Element } from "./element";
+import { Element } from "./element.js";
 import { isTag, isWS, outvar } from "./utils.js";
 
 export interface Node {

@@ -11,16 +11,15 @@ Using Poggies comes in two steps: Initializating a document and Rendering it.
 You can initialize a document using `new Poggies(<code>)`
 
 ```js
-const { Poggies } = require("poggies");
+import { Poggies } from "poggies";
 const hello = new Poggies('h1(class="red bold")[Hello World!]');
 ```
 
 After this initialization step, you can render the document using `Poggies.render()`
 
 ```js
-hello.render().then(html => {
-	console.log(html);
-});
+const html = await hello.render();
+console.log(html);
 ```
 
 This will log:
@@ -29,34 +28,34 @@ This will log:
 <h1 class="red bold">Hello World!</h1>
 ```
 
-You can also just directly use renderFile like this (hello.pog containing your poggies code, of course):
+You can also use renderFile, which renders the contents of a file (hello.pog containing your poggies code, of course):
 
 ```js
-const { renderFile } = require("poggies");
-renderFile("hello.pog").then(html => {
-	console.log(html);
-});
+import { renderFile } from "poggies";
+const html = await renderFile("hello.pog");
+console.log(html);
 ```
 
 ## Syntax
 
-Simple example document:
+Basic example document:
 
 ```
-html(lang="en-US"){
+html(lang=en-US){
     head{
         title[Example Page]
         style[
+			#header{
+				text-align: center;
+			}
             .red{
                 color: red;
-            }
-            .bold{
-                font-weight: bold;
             }
         ]
     }
     body{
-        h1(class="red bold")[Hello World!]
+        h1#header.red(title="hi there :)")[Hello World!]
+		b[This is a paragraph.]
     }
 }
 ```
@@ -78,18 +77,15 @@ Which, when rendered, will evaluate to
 You can also input variables into the rendering process! This is done by adding an extra argument into `Poggies.render()`!
 
 ```js
-const { Poggies } = require("poggies");
+import { Poggies } from "poggies";
 const hello = new Poggies(
 	'h1(class="red bold")[>`${first} plus ${second} is ${first+second}`]'
 );
-hello
-	.render({
-		first: 12,
-		second: 26
-	})
-	.then(html => {
-		console.log(html);
-	});
+const html = await hello.render({
+	first: 12,
+	second: 26,
+});
+console.log(html);
 ```
 
 This will evaluate to
@@ -107,46 +103,40 @@ You can add Elements to the children of an object dynamically!
 #### `For` example:
 
 ```js
-const { Poggies } = require("poggies");
+import { Poggies } from "poggies";
 const wow = new Poggies(`
-div[Wow!]<for(word of words)[>word]>`);
-wow
-	.render({
-		words: [" A ", "dynamic ", "page!"]
-	})
-	.then(html => {
-		console.log(html);
-	});
+div[For ]<for(word of words)[>word]>`);
+const html = await wow.render({
+	words: ["loops ", "are ", "cool"],
+});
+console.log(html);
 ```
 
-Will loop over the `words` parameter and add each word in it! Result:
+Will loop over the `words` array and display each word! Result:
 
 ```html
-<div>Wow! A dynamic page!</div>
+<div>For loops are cool</div>
 ```
 
-<div>Wow! A dynamic page!</div>
+<div>For loops are cool</div>
 
 #### `If` example:
 
 ```js
-const { Poggies } = require("poggies");
+import { Poggies } from "poggies";
 const wow = new Poggies(`
-span<if(chance)[You're a lucky one.]>`);
-wow
-	.render({
-		chance: Math.random() < 0.5
-	})
-	.then(html => {
-		console.log(html);
-	});
+span<if(chance)[You got it!]>`);
+const html = await wow.render({
+	chance: Math.random() < 0.5,
+});
+console.log(html);
 ```
 
-Will give you a 50% chance of seeing "You're a lucky one."! Result:
+Will give you a 50% chance of seeing "You got it!" Result:
 
-`<span></span>` OR `<span>You're a lucky one.</span>`
+`<span></span>` OR `<span>You got it!</span>`
 
-<blink><span>You're a lucky one.</span></blink>
+<span>You got it!</span>
 
 <br/><br/><br/>
 
@@ -161,10 +151,10 @@ Will give you a 50% chance of seeing "You're a lucky one."! Result:
   `h1(hidden)[You can't see me]`
 - If an attribute doesn't contain any spaces, you can insert it without quotes,  
   `a(href=https://example.com/)[like this!]`  
-  <small>PS, if it does contain a ), then this won't work</small>
+  <small>PS, if it does contain a ), this won't work</small>
 - You can stack [], {}, and <>! For example, to put a line break in the middle of a span:  
   `span[Line 1]{br}[Line 2]` ==> `<span>Line 1<br/>Line 2</span>`
 - Poggies also supports ESM, so you can also import things using `import { ____ } from "poggies"`!
 - renderFile caches files, so your poor CPU doesn't have to parse everything again!  
-  In a small test this lead to a pretty decent ~4ms to ~0.2ms improvement!
+  In a small test this lead to a huge ~4ms to ~0.015ms improvement!
 - Poggies has a bunch of JSDocs built in, meaning that your IDE will be able to show you a bit of a description about Poggies' functions and classes!

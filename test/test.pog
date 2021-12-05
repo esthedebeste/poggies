@@ -26,7 +26,7 @@ html(lang=en-US){
         p.red(hidden)[If this is visible, attributes aren't working properly.]
         br
     }
-    <if(ifstatements.working())[Woah, if statements work!]>
+    <if(ifstatements.working())[If statements work!]>
     {br}
     <for(word of forTest.sentence)[>word]>
     {br}

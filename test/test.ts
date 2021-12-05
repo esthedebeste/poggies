@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { Poggies } from "../src/poggies.js";
+import { Poggies } from "../dist/poggies.js";
 
 const ansi = (...n: number[]) => `\x1b[${n.join(";")}m`;
 const reset = ansi(0);
