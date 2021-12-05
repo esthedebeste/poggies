@@ -1,12 +1,12 @@
 {
 	"name": "poggies",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "A simple JavaScript templating engine",
 	"main": "./dist/poggies.js",
 	"types": "./dist/poggies.d.ts",
 	"repository": "github:tbhmens/poggies",
 	"exports": {
-		"import": "./dist/index.js"
+		"import": "./dist/poggies.js"
 	},
 	"type": "module",
 	"author": "tbhmens",
