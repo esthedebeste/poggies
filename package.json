@@ -1,29 +1,44 @@
 {
 	"name": "poggies",
-	"version": "0.3.2",
+	"version": "1.0.0",
 	"description": "A simple JavaScript templating engine",
-	"type": "commonjs",
-	"main": "./src/index.js",
-	"module": "./src/module.mjs",
-	"types": "./poggies.d.ts",
-	"scripts": {
-		"test": "cd test && node test.js"
-	},
+	"main": "./dist/poggies.js",
+	"types": "./dist/poggies.d.ts",
 	"repository": "github:tbhmens/poggies",
+	"exports": {
+		"import": "./dist/index.js"
+	},
+	"type": "module",
+	"author": "tbhmens",
+	"license": "MIT",
 	"keywords": [
 		"templating",
 		"poggies",
 		"template",
 		"engine"
 	],
-	"exports": {
-		"require": "./src/index.js",
-		"import": "./src/module.mjs"
-	},
-	"author": "tbhmens",
-	"license": "MIT",
 	"bugs": {
 		"url": "https://github.com/tbhmens/poggies/issues"
 	},
-	"homepage": "https://github.com/tbhmens/poggies#readme"
+	"files": [
+		"dist/**/*.js",
+		"dist/poggies.d.ts"
+	],
+	"homepage": "https://github.com/tbhmens/poggies#readme",
+	"scripts": {
+		"build": "tsc && prettier -w ./dist",
+		"prepack": "npm run build",
+		"test": "tsm ./test/test.ts"
+	},
+	"devDependencies": {
+		"@types/node": "^16.11.9",
+		"@typescript-eslint/eslint-plugin": "^5.4.0",
+		"@typescript-eslint/parser": "^5.4.0",
+		"eslint": "^8.3.0",
+		"eslint-config-prettier": "^8.3.0",
+		"eslint-plugin-unicorn": "^39.0.0",
+		"prettier": "^2.4.1",
+		"tsm": "^2.1.4",
+		"typescript": "^4.5.2"
+	}
 }

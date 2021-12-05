@@ -1,6 +1,6 @@
 {
 	"isTag loop": {
-		"scope": "javascript",
+		"scope": "typescript",
 		"prefix": "isTag",
 		"body": [
 			"let ${1:variable} = \"\";",
@@ -10,7 +10,7 @@
 		]
 	},
 	"isWS loop": {
-		"scope": "javascript",
+		"scope": "typescript",
 		"prefix": "isWS",
 		"body": ["while (isWS(source[index]) && index < len) index++;", "$0"]
 	}
