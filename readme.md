@@ -8,16 +8,11 @@ Poggies is a simple 0-dependencies HTML templating engine, with a very simple sy
 
 Using Poggies comes in two steps: Initializating a document and Rendering it.
 
-You can initialize a document using `new Poggies(<code>)`
+You can initialize a document using `new Poggies(<code>)`. After this, you can render the document using `Poggies.render()`
 
 ```js
 import { Poggies } from "poggies";
 const hello = new Poggies('h1(class="red bold")[Hello World!]');
-```
-
-After this initialization step, you can render the document using `Poggies.render()`
-
-```js
 const html = await hello.render();
 console.log(html);
 ```
@@ -45,24 +40,25 @@ html(lang=en-US){
     head{
         title[Example Page]
         style[
-			#header{
-				text-align: center;
-			}
+            #header{
+              text-align: center;
+            }
             .red{
                 color: red;
             }
         ]
     }
     body{
-        h1#header.red(title="hi there :)")[Hello World!]
-		b[This is a paragraph.]
+        h1#header.red(onclick="alert('Hi')")[Hello World!]
+        br
+        span[:)]
     }
 }
 ```
 
 Poggies also supports JavaScript in the templates (and async/await syntax!)
 
-To add dynamic elements to your page, add an > like so:
+To add dynamic elements to your page, add a > like so:
 
 ```
 h1(class="red bold")[>`six plus six is ${6+6}`]
@@ -77,7 +73,6 @@ Which, when rendered, will evaluate to
 You can also input variables into the rendering process! This is done by adding an extra argument into `Poggies.render()`!
 
 ```js
-import { Poggies } from "poggies";
 const hello = new Poggies(
 	'h1(class="red bold")[>`${first} plus ${second} is ${first+second}`]'
 );
@@ -104,8 +99,7 @@ You can add Elements to the children of an object dynamically!
 
 ```js
 import { Poggies } from "poggies";
-const wow = new Poggies(`
-div[For ]<for(word of words)[>word]>`);
+const wow = new Poggies("div[For ]<for(word of words)[>word]>");
 const html = await wow.render({
 	words: ["loops ", "are ", "cool"],
 });
@@ -154,7 +148,5 @@ Will give you a 50% chance of seeing "You got it!" Result:
   <small>PS, if it does contain a ), this won't work</small>
 - You can stack [], {}, and <>! For example, to put a line break in the middle of a span:  
   `span[Line 1]{br}[Line 2]` ==> `<span>Line 1<br/>Line 2</span>`
-- Poggies also supports ESM, so you can also import things using `import { ____ } from "poggies"`!
 - renderFile caches files, so your poor CPU doesn't have to parse everything again!  
-  In a small test this lead to a huge ~4ms to ~0.015ms improvement!
-- Poggies has a bunch of JSDocs built in, meaning that your IDE will be able to show you a bit of a description about Poggies' functions and classes!
+  In a small test this lead to a huge ~3.6ms to ~0.015ms improvement!

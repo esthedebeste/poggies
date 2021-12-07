@@ -2,13 +2,18 @@ import { Element } from "./element.js";
 import { isTag, isWS, outvar } from "./utils.js";
 
 export interface Node {
-	jsify(): string;
+	jsify(): {
+		multiline: boolean;
+		code: string;
+	};
 }
+export const multilinify = (js: ReturnType<Node["jsify"]>): string =>
+	js.multiline ? js.code : `${outvar}+=${js.code};`;
 export const JSONify = (str: string) => JSON.stringify(str);
 class Text implements Node {
 	constructor(public text: string) {}
 	jsify() {
-		return `${outvar} += ${JSONify(this.text)};`;
+		return { multiline: false, code: JSONify(this.text) };
 	}
 	static from(source: string, index: number) {
 		const endI = source.indexOf("]", index);
@@ -18,7 +23,7 @@ class Text implements Node {
 class DynamicText implements Node {
 	constructor(public code: string) {}
 	jsify() {
-		return `${outvar} += ${this.code};`;
+		return { multiline: false, code: this.code };
 	}
 	static from(source: string, index: number) {
 		const endI = source.indexOf("]", index);
@@ -41,20 +46,16 @@ class Dynamic implements Node {
 				? // Prevent for...of and for...in from leaking into global scope
 				  `for (let ${this.declaration}) {`
 				: `${this.type} (${this.declaration}) {`;
-		code += this.children.jsify();
+		code += multilinify(this.children.jsify());
 		code += "}";
-		return code;
+		return { multiline: true, code };
 	}
 	static from(source: string, index: number) {
 		const len = source.length;
 		let type = "";
 		for (; index < len && isTag(source[index]); index++) type += source[index];
 		while (isWS(source[index]) && index < len) index++;
-		if (source[index] !== "(") {
-			console.dir(source[index]);
-			console.log(index, source.slice(index - 3, index + 3));
-			throw new Error("Expected ( after dynamic name");
-		}
+		if (source[index] !== "(") throw new Error("Expected ( after dynamic name");
 		let content = "";
 		let open = 1;
 		while (open > 0) {
@@ -79,8 +80,23 @@ export class ChildNodes implements Node {
 	constructor(public nodes: Node[]) {
 		this.size = nodes.length;
 	}
-	jsify(): string {
-		return this.nodes.map(node => node.jsify()).join("\n");
+	jsify() {
+		let result = "";
+		let lastML = false;
+		let hasML = false;
+		for (const node of this.nodes) {
+			const { multiline, code } = node.jsify();
+			if (!hasML && multiline) {
+				hasML = true;
+				if (!lastML && result.length > 0) result = `${outvar}+=${result}`;
+			}
+			if (lastML) result += multiline ? code : `${outvar}+=${code}`;
+			else if (result.length === 0) result += code;
+			else result += multiline ? `;${code}` : `+${code}`;
+			lastML = multiline;
+		}
+		if (hasML && !lastML) result += ";";
+		return { multiline: hasML, code: result };
 	}
 	static from(
 		source: string,
@@ -102,7 +118,6 @@ export class ChildNodes implements Node {
 				index = i + 1;
 				while (isWS(source[index]) && index < len) index++;
 			}
-
 			// Children
 			else if (source[index] === "{") {
 				index++;
@@ -115,7 +130,6 @@ export class ChildNodes implements Node {
 				index++;
 				while (isWS(source[index]) && index < len) index++;
 			}
-
 			// Dynamics (if, for)
 			else if (source[index] === "<") {
 				index++;

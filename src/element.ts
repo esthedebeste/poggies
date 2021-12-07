@@ -16,6 +16,7 @@ export const voidElements = new Set([
 	"command",
 	"keygen",
 	"source",
+	"!doctype",
 ]);
 class Attribute {
 	constructor(public value: string) {}
@@ -96,7 +97,8 @@ class VoidElement implements Node {
 	) {}
 	jsify() {
 		const attrs = Object.entries(this.attrs);
-		if (attrs.length === 0) return `${outvar} += "<${this.tag}>";`;
+		if (attrs.length === 0)
+			return { multiline: false, code: `"<${this.tag}>"` };
 		const staticAttrs =
 			attrs
 				.filter(isAttr)
@@ -108,13 +110,15 @@ class VoidElement implements Node {
 				.join("");
 		const dynAttrs = attrs.filter(isDynAttr);
 		if (dynAttrs.length === 0)
-			return (
-				`${outvar} += ` + JSON.stringify(`<${this.tag}${staticAttrs}>`) + ";"
-			);
-		let code = `${outvar} += ${JSON.stringify(`<${this.tag}${staticAttrs}`)};`;
+			return {
+				multiline: false,
+				code: JSON.stringify(`<${this.tag}${staticAttrs}>`),
+			};
+		let code = JSON.stringify(`<${this.tag}${staticAttrs}`);
 		for (const [name, attr] of dynAttrs)
-			code += `${outvar} += ${JSONify(" " + name + "=")}+` + attr.jsify() + ";";
-		return code + `${outvar} += ">";`;
+			code += "+" + JSONify(" " + name + "=") + "+" + attr.jsify();
+		code += '+">"';
+		return { multiline: false, code };
 	}
 }
 export class Element extends VoidElement {
@@ -126,12 +130,18 @@ export class Element extends VoidElement {
 		super(tag, attrs);
 	}
 	jsify() {
-		let code = super.jsify();
-		code += "{";
-		code += this.children.jsify();
-		code += "}";
-		code += `${outvar} += ${JSONify(`</${this.tag}>`)};`;
-		return code;
+		const { code } = super.jsify();
+		const { multiline, code: childCode } = this.children.jsify();
+		if (childCode.length === 0)
+			return { multiline, code: code + "+" + JSONify(`</${this.tag}>`) };
+		return {
+			multiline,
+			code: multiline
+				? `${outvar}+=${code};${childCode}${outvar} += ${JSONify(
+						`</${this.tag}>`
+				  )};`
+				: `${code}+${childCode}+${JSONify(`</${this.tag}>`)}`,
+		};
 	}
 	static from(source: string, index: number) {
 		const len = source.length;
@@ -165,7 +175,7 @@ export class Element extends VoidElement {
 		while (isWS(source[index]) && index < len) index++;
 		let children: ChildNodes;
 		({ children, index } = ChildNodes.from(source, index));
-		if (voidElements.has(tag))
+		if (voidElements.has(tag.toLowerCase()))
 			if (children.nodes.length > 0)
 				throw new Error(`${tag} cannot have children`);
 			else return { node: new VoidElement(tag, attrs), index };
