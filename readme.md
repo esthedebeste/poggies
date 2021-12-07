@@ -36,6 +36,7 @@ console.log(html);
 Basic example document:
 
 ```
+!doctype(html)
 html(lang=en-US){
     head{
         title[Example Page]
