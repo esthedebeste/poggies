@@ -1,4 +1,12 @@
 !doctype(html)
+$link(href target text){
+  a(href=>href target=>target)[>new URL(href).hostname]
+}
+$list(items){
+    ul<for(item of items){
+      li[>item]
+    }>
+}
 html(lang=en-US){
     head{
         title[Test Page]
@@ -23,7 +31,8 @@ html(lang=en-US){
             class="bold green"
             data-close=")"
         )[:D]
-        a(href=>`https://${site}.`+tld target=_blank)[>`${site}.${tld}`]
+        $link(href=>`https://${site}.${tld}/` target=_blank)
+        $list(items=>[1,2,3])
         p.red(hidden)[If this is visible, attributes aren't working properly.]
         br
     }

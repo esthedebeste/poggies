@@ -2,7 +2,7 @@ import { ChildNodes, JSONify, Node } from "./nodes.js";
 import { isTag, isWS, jsonifyfunc, outvar } from "./utils.js";
 
 /** Elements that shouldn't have a closing tag */
-export const voidElements = new Set([
+const voidElements = new Set([
 	"area",
 	"base",
 	"br",
@@ -31,14 +31,18 @@ class Attribute {
 class DynamicAttribute {
 	constructor(public code: string) {}
 	jsify() {
-		return `${jsonifyfunc}(${this.code})`;
+		return this.code;
 	}
 	/** adds a string to the end of the attribute */
 	add(value: string) {
 		this.code = `(${this.code}) + ${JSONify(value)}`;
 	}
 }
-class Flag {}
+class Flag {
+	jsify() {
+		return "true";
+	}
+}
 const parseAttributes = (source: string, index: number) => {
 	const attributes: Record<string, Attribute | DynamicAttribute | Flag> = {};
 	while (index < source.length) {
@@ -90,7 +94,7 @@ const isDynAttr = (kv: [string, any]): kv is [string, DynamicAttribute] =>
 	kv[1] instanceof DynamicAttribute;
 const isFlag = (kv: [string, any]): kv is [string, Flag] =>
 	kv[1] instanceof Flag;
-class VoidElement implements Node {
+export class VoidElement implements Node {
 	constructor(
 		public tag: string,
 		public attrs: Record<string, Attribute | DynamicAttribute | Flag>
@@ -98,7 +102,7 @@ class VoidElement implements Node {
 	jsify() {
 		const attrs = Object.entries(this.attrs);
 		if (attrs.length === 0)
-			return { multiline: false, code: `"<${this.tag}>"` };
+			return { multiline: false, code: JSON.stringify(`<${this.tag}>`) };
 		const staticAttrs =
 			attrs
 				.filter(isAttr)
@@ -116,7 +120,7 @@ class VoidElement implements Node {
 			};
 		let code = JSON.stringify(`<${this.tag}${staticAttrs}`);
 		for (const [name, attr] of dynAttrs)
-			code += "+" + JSONify(" " + name + "=") + "+" + attr.jsify();
+			code += `+${JSONify(` ${name}=`)}+${jsonifyfunc}(${attr.jsify()})`;
 		code += '+">"';
 		return { multiline: false, code };
 	}
@@ -143,7 +147,11 @@ export class Element extends VoidElement {
 				: `${code}+${childCode}+${JSONify(`</${this.tag}>`)}`,
 		};
 	}
-	static from(source: string, index: number) {
+	static from(
+		source: string,
+		index: number,
+		isVoid = false
+	): { node: VoidElement | Element; index: number } {
 		const len = source.length;
 		let tag = "";
 		for (; index < len && isTag(source[index]); index++) tag += source[index];
@@ -171,11 +179,10 @@ export class Element extends VoidElement {
 				attrs.id = new Attribute(id);
 			}
 		}
-
 		while (isWS(source[index]) && index < len) index++;
 		let children: ChildNodes;
 		({ children, index } = ChildNodes.from(source, index));
-		if (voidElements.has(tag.toLowerCase()))
+		if (isVoid || voidElements.has(tag.toLowerCase()))
 			if (children.nodes.length > 0)
 				throw new Error(`${tag} cannot have children`);
 			else return { node: new VoidElement(tag, attrs), index };

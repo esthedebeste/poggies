@@ -133,6 +133,24 @@ Will give you a 50% chance of seeing "You got it!" Result:
 
 <span>You got it!</span>
 
+### Templates
+
+Poggies supports templates, which allow for easier repetition of elements.
+To create a template, you can add a $ sign to the beginning of your element at the top level.
+For Example:
+
+```
+$row(name addr){
+  tr{
+    td.name[>name]
+    td.addr[>addr]
+  }
+}
+table{
+  $row(name="1st" addr="2nd")
+}
+```
+
 <br/><br/><br/>
 
 ### Extras

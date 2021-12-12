@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { Poggies, renderFile } from "../dist/poggies.js";
+import { Poggies, renderFile } from "../src/poggies.js";
 
 const ansi = (...n: number[]) => `\x1b[${n.join(";")}m`;
 const reset = ansi(0);
@@ -28,31 +28,42 @@ console.time(total);
 console.time(parsing);
 const poggies = new Poggies(source);
 console.timeEnd(parsing);
-console.time(compiling);
-const compiled = poggies.compile();
-console.timeEnd(compiling);
-console.time(firstRender);
-await poggies.render(data);
-console.timeEnd(firstRender);
-console.timeEnd(total);
-writeFileSync(
-	new URL("./output/poggies.js", import.meta.url),
-	"/*eslint-disable unicorn/no-abusive-eslint-disable*/\n/*eslint-disable*/\n" +
-		compiled.toString()
-);
-writeFileSync(
-	new URL("./output/poggies.html", import.meta.url),
-	await renderFile(new URL("./test.pog", import.meta.url), data)
-);
+try {
+	console.time(compiling);
+	const compiled = poggies.compile();
+	console.timeEnd(compiling);
+	console.time(firstRender);
+	await poggies.render(data);
+	console.timeEnd(firstRender);
+	console.timeEnd(total);
+	writeFileSync(
+		new URL("./output/poggies.js", import.meta.url),
+		"/*eslint-disable unicorn/no-abusive-eslint-disable*/\n/*eslint-disable*/\n" +
+			compiled.toString()
+	);
+	writeFileSync(
+		new URL("./output/poggies.html", import.meta.url),
+		await renderFile(new URL("./test.pog", import.meta.url), data)
+	);
 
-const start = process.hrtime.bigint();
-for (let i = 0; i < 100; i++) await poggies.render(data);
-const end = process.hrtime.bigint();
-const msAvg = Number(end - start) / 100000000;
-console.log(green + `100 renders average${reset}: ${msAvg} ms/render`);
-console.log("\n");
-console.log(
-	green +
-		"Rendered to ./output/poggies.html, compile output at ./output/poggies.js" +
-		reset
-);
+	const start = process.hrtime.bigint();
+	for (let i = 0; i < 100; i++) await poggies.render(data);
+	const end = process.hrtime.bigint();
+	const msAvg = Number(end - start) / 100000000;
+	console.log(green + `100 renders average${reset}: ${msAvg} ms/render`);
+	console.log("\n");
+	console.log(
+		green +
+			"Rendered to ./output/poggies.html, compile output at ./output/poggies.js" +
+			reset
+	);
+} catch (error) {
+	writeFileSync(
+		new URL("./output/poggies.js", import.meta.url),
+		"/* eslint-disable unicorn/no-abusive-eslint-disable */\n/* eslint-disable */\nasync function anonymous(__INPUT__, __JSONIFY__ = JSON.stringify) {" +
+			poggies.js +
+			"}"
+	);
+	console.error("Error caught. Compiled output at ./output/poggies.js");
+	throw error;
+}

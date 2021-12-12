@@ -1,4 +1,5 @@
 import { Element } from "./element.js";
+import { Template, TemplateUsage } from "./templating.js";
 import { isTag, isWS, outvar } from "./utils.js";
 
 export interface Node {
@@ -76,6 +77,7 @@ class Dynamic implements Node {
 }
 
 export class ChildNodes implements Node {
+	static readonly starts = "[{<";
 	size: number;
 	constructor(public nodes: Node[]) {
 		this.size = nodes.length;
@@ -100,8 +102,10 @@ export class ChildNodes implements Node {
 	}
 	static from(
 		source: string,
-		index: number
+		index: number,
+		creatingTemplates = false
 	): { children: ChildNodes; index: number } {
+		const T = creatingTemplates ? Template : TemplateUsage;
 		const len = source.length;
 		while (isWS(source[index]) && index < len) index++;
 		const nodes: Node[] = [];
@@ -122,10 +126,16 @@ export class ChildNodes implements Node {
 			else if (source[index] === "{") {
 				index++;
 				while (isWS(source[index]) && index < len) index++;
-				while (isTag(source[index])) {
-					let node: any;
-					({ node, index } = Element.from(source, index));
-					nodes.push(node);
+				while (isTag(source[index]) || source[index] === "$") {
+					if (source[index] === "$") {
+						let template: Node;
+						({ template, index } = T.from(source, index));
+						nodes.push(template);
+					} else {
+						let node: Node;
+						({ node, index } = Element.from(source, index));
+						nodes.push(node);
+					}
 				}
 				index++;
 				while (isWS(source[index]) && index < len) index++;
