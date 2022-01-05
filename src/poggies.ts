@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { ChildNodes, multilinify } from "./nodes.js";
 import { inputvar, jsonifyfunc, outvar } from "./utils.js";
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
@@ -42,18 +41,23 @@ export class Poggies {
 
 type PathLike = string | URL;
 const fileCache = new Map<PathLike, Poggies>();
+let readFileSync: typeof import("node:fs").readFileSync | undefined;
 /** Coggers promise-style template function */
 export const renderFile = async (
 	file: PathLike,
 	input: Record<any, any> = {},
 	options: Options & { cache?: boolean } = {}
 ): Promise<string> => {
+	if (!readFileSync) {
+		const fs = await import("node:fs");
+		readFileSync = fs.readFileSync;
+	}
 	if (options.cache === false) {
-		const poggies = new Poggies(readFileSync(file).toString());
+		const poggies = new Poggies(readFileSync(file, "utf8"));
 		return poggies.render(input, options);
 	}
 	if (!fileCache.has(file))
-		fileCache.set(file, new Poggies(readFileSync(file).toString()));
+		fileCache.set(file, new Poggies(readFileSync(file, "utf8")));
 	const poggies = fileCache.get(file);
 	return poggies.render(input, options);
 };
