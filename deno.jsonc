@@ -1,0 +1,16 @@
+{
+	"lint": {
+		"exclude": ["dist", "test/dist"],
+		"include": ["*.ts"]
+	},
+	"fmt": {
+		"useTabs": true,
+		"semiColons": false,
+		"lineWidth": 120
+	},
+	"tasks": {
+		"build": "deno run -A ./esbuild.ts && deno fmt dist/poggies.d.ts",
+		"bench": "deno run -A ./test/bench.ts"
+	},
+	"nodeModulesDir": true
+}

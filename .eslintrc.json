@@ -1,7 +1,4 @@
 {
-	"env": {
-		"node": true
-	},
 	"extends": [
 		"eslint:recommended",
 		"plugin:@typescript-eslint/recommended",
@@ -10,30 +7,19 @@
 	],
 	"parser": "@typescript-eslint/parser",
 	"parserOptions": {
-		"ecmaVersion": 10,
+		"ecmaVersion": 2022,
 		"sourceType": "module"
 	},
 	"plugins": ["@typescript-eslint", "unicorn"],
 	"rules": {
-		"@typescript-eslint/ban-ts-comment": "off",
-		"@typescript-eslint/no-explicit-any": "off",
-		"@typescript-eslint/no-empty-function": "off",
-		"unicorn/escape-case": "off",
-		"unicorn/no-hex-escape": "off",
-		"unicorn/prevent-abbreviations": "off",
-		"unicorn/numeric-separators-style": "off",
-		"unicorn/no-null": "off",
-		"unicorn/prefer-code-point": "off",
-		"unicorn/no-array-callback-reference": "off",
-		"no-fallthrough": "off"
-	},
-	"root": true,
-	"overrides": [
-		{
-			"files": ["*.js"],
-			"env": {
-				"browser": true
+		"@typescript-eslint/ban-ts-comment": [
+			"error",
+			{
+				"ts-expect-error": "allow-with-description",
+				"ts-ignore": "allow-with-description",
+				"minimumDescriptionLength": 3
 			}
-		}
-	]
+		]
+	},
+	"root": true
 }

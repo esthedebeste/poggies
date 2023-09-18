@@ -1,63 +1,52 @@
-import { Element, VoidElement } from "./element.js";
-import { ChildNodes, Node } from "./nodes.js";
-import { isTag, outvar } from "./utils.js";
+import { Element, VoidElement } from "./element.ts"
+import { ChildNodes, Node } from "./nodes.ts"
+import { Reader } from "./reader.ts"
+import { outvar } from "./utils.ts"
 
-export class Template implements Node {
+export class TemplateDeclaration implements Node {
 	constructor(
 		public name: string,
-		public props: string[],
-		public children: ChildNodes
+		public properties: string[],
+		public children: ChildNodes,
 	) {}
 	jsify() {
-		const { multiline, code } = this.children.jsify();
+		const { multiline, code } = this.children.jsify()
 		return {
 			multiline: true,
-			code: `const $${this.name}=async({${this.props.join(",")}})=>${
-				multiline ? `{let ${outvar}="";${code};return ${outvar};}` : code
-			};`,
-		};
+			code: `const $${this.name.replaceAll("-", "$")}=async({${
+				this.properties.join(
+					",",
+				)
+			}})=>${multiline ? `{let ${outvar}="";${code};return ${outvar};}` : code};`,
+		}
 	}
-	static from(
-		source: string,
-		index: number
-	): { template: Template; index: number } {
-		const len = source.length;
-		index++; // Skip past the initial `$`
-		let name = "";
-		for (; index < len && isTag(source[index]); index++) name += source[index];
-		if (source[index] !== "(")
-			throw new Error("Invalid template tag, no input declaration");
-		const end = source.indexOf(")", index + 1);
-		const props: string[] = source
-			.slice(index + 1, end)
-			.split(/\s/)
-			.map(s => s.trim());
-		index = end + 1;
-		let children: ChildNodes;
-		({ children, index } = ChildNodes.from(source, index));
-		return { template: new Template(name, props, children), index };
+	static from(name: string, reader: Reader): TemplateDeclaration {
+		if (reader.next() !== "(") {
+			throw new Error("Invalid template tag, no input declaration")
+		}
+		const text = reader.collect((char) => char !== ")")
+		const properties = text.split(/\s+/).map((s) => s.trim())
+		reader.skip(1) // Skip past the closing `)`
+		const children = ChildNodes.from(reader)
+		return new TemplateDeclaration(name, properties, children)
 	}
 }
 
 export class TemplateUsage extends VoidElement {
 	jsify() {
-		const attrObj = Object.entries(this.attrs)
-			.map(([name, attr]) => `${JSON.stringify(name)}:${attr.jsify()}`)
-			.join(",");
+		const attributeObject = Object.entries(this.attributes)
+			.map(([name, attribute]) => `${JSON.stringify(name)}:${attribute.jsify()}`)
+			.join(",")
 		return {
 			multiline: false,
-			code: `(await $${this.tag}({${attrObj}}))`,
-		};
+			code: `(await $${this.tag.replaceAll("-", "$")}({${attributeObject}}))`,
+		}
 	}
-	static from(
-		source: string,
-		index: number
-	): { template: TemplateUsage; index: number } {
-		index++; // Skip past the initial `$`
-		let template: VoidElement | Element;
-		({ node: template, index } = Element.from(source, index, true));
-		if ("children" in template)
-			throw new Error("Template usages cannot have children");
-		return { template: new TemplateUsage(template.tag, template.attrs), index };
+	static from(name: string, reader: Reader): TemplateUsage {
+		const template: VoidElement | Element = Element.from(name, reader, true)
+		if ("children" in template) {
+			throw new Error("Template usages cannot have children")
+		}
+		return new TemplateUsage(name, template.attributes)
 	}
 }

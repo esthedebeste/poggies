@@ -1,74 +1,99 @@
-import { ChildNodes, multilinify } from "./nodes.js";
-import { inputvar, jsonifyfunc, outvar } from "./utils.js";
-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+import { ChildNodes, multilinify } from "./nodes.ts"
+import { Reader } from "./reader.ts"
+import { escapeHTMLSource, inputvar, jsonifyfunc, outvar, readTextFile } from "./utils.ts"
+// only this file's .d.ts is exported to npm!!
+// be careful not to export types from other files :p
+
+// eslint-disable-next-line @typescript-eslint/no-empty-function -- function only exists for its constructor
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
 export type Options = {
 	/** @deprecated `!doctype(html)` is now valid poggies code, use that instead. */
-	doctype?: string | false;
-};
+	doctype?: string | false
+}
+
+export type RenderFunction = (
+	input: Record<string, unknown>,
+	jsonify?: (string: string) => string,
+) => Promise<string>
+
 export class Poggies {
-	private nodes: ChildNodes;
-	js: string;
-	func: (
-		input: Record<any, any>,
-		jsonify?: (str: string) => string
-	) => Promise<string>;
+	private nodes: ChildNodes
+	private func!: RenderFunction
+	/** The body of the function. Available before calling compile() or javascript() */
+	js: string
 	constructor(source: string) {
-		const { children } = ChildNodes.from("{" + source + "}", 0, true);
-		this.nodes = children;
-		const js = multilinify(this.nodes.jsify());
-		this.js = `let ${outvar}="";with(${inputvar}){${js}}return ${outvar};`;
+		const reader = new Reader("{" + source + "}")
+		reader.column-- // because the first character is a fake {
+		try {
+			this.nodes = ChildNodes.from(reader)
+		} catch (error) {
+			if (error instanceof Error) {
+				error.message += ` at (${reader.line}:${reader.column}) ("${
+					reader.source.slice(reader.index - 5, reader.index + 5)
+				}")`
+			}
+			throw error
+		}
+		const js = multilinify(this.nodes.jsify())
+		this.js = `${escapeHTMLSource}let ${outvar}="";with(${inputvar}){${js}}return ${outvar};`
 	}
-	compile(): (passing: Record<string, string>) => Promise<string> {
-		// async function(__INPUT__, __JSONIFY__ = JSON.stringify) { ${this.js} }
+	/** Compiles the Poggies document into a function that can be called to return the rendered HTML */
+	compile(): RenderFunction {
 		return (this.func = new AsyncFunction(
 			inputvar,
 			jsonifyfunc + "=JSON.stringify",
-			this.js
-		));
+			this.js,
+		))
+	}
+	/**
+	 * `async function(__INPUT__, __JSONIFY__ = JSON.stringify) { ${this.js} }`.
+	 * Similar to this.compile().toString(), but doesn't actually compile a function.
+	 */
+	javascript(): string {
+		return `async function(${inputvar}, ${jsonifyfunc} = JSON.stringify) { ${this.js} }`
 	}
 	/** Renders this Poggies document with some given variables */
 	async render(
-		input: Record<any, any> = {},
-		options: Options = {}
+		input: Record<string, unknown> = {},
+		options: Options = {},
 	): Promise<string> {
-		if (this.func == null) this.compile();
-		let output = await this.func(input, JSON.stringify);
-		const { doctype } = options;
-		if (doctype) output = `<!doctype ${doctype}>` + output;
-		return output;
+		if (this.func === undefined) this.compile()
+		let output = await this.func(input, JSON.stringify)
+		const { doctype } = options
+		if (doctype) output = `<!doctype ${doctype}>` + output
+		return output
 	}
 }
 
-type PathLike = string | URL;
-const fileCache = new Map<PathLike, Poggies>();
-let readFileSync: typeof import("node:fs").readFileSync | undefined;
+export type PathLike = string | URL
+const fileCache = new Map<PathLike, Poggies>()
 /** Coggers promise-style template function */
-export const renderFile = async (
+export async function renderFile(
 	file: PathLike,
-	input: Record<any, any> = {},
-	options: Options & { cache?: boolean } = {}
-): Promise<string> => {
-	if (!readFileSync) {
-		const fs = await import("node:fs");
-		readFileSync = fs.readFileSync;
-	}
+	input: Record<string, unknown> = {},
+	options: Options & { cache?: boolean } = {},
+): Promise<string> {
 	if (options.cache === false) {
-		const poggies = new Poggies(readFileSync(file, "utf8"));
-		return poggies.render(input, options);
+		const poggies = new Poggies(await readTextFile(file))
+		return poggies.render(input, options)
 	}
-	if (!fileCache.has(file))
-		fileCache.set(file, new Poggies(readFileSync(file, "utf8")));
-	const poggies = fileCache.get(file);
-	return poggies.render(input, options);
-};
+
+	if (!fileCache.has(file)) {
+		fileCache.set(file, new Poggies(await readTextFile(file)))
+	}
+	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+	const poggies = fileCache.get(file)!
+	return poggies.render(input, options)
+}
 /** Express-style template function */
-export const express = (
+export function express(
 	file: string,
-	input: Record<any, any> = {},
+	input: Record<string, unknown> = {},
 	options: Options = {},
-	callback: (error: any, html?: string) => any
-) =>
+	callback: (error: unknown, html?: string) => unknown,
+) {
 	renderFile(file, input, options).then(
-		result => callback(null, result),
-		error => callback(error)
-	);
+		(result) => callback(undefined, result),
+		(error) => callback(error),
+	)
+}

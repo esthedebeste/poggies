@@ -1,33 +1,48 @@
-import { readFileSync, unlinkSync, watchFile, writeFileSync } from "node:fs";
-import { Poggies } from "../src/poggies.js";
+import { fromFileUrl } from "https://deno.land/std@0.180.0/path/mod.ts"
+import { Poggies } from "../src/poggies.ts"
+import { data } from "./utils.ts"
 
-const data = {
-	first: 12,
-	second: 26,
-	words: ["loops ", "are ", "cool"],
-	chance: Math.random() < 0.5,
-};
-const input = new URL("./input.pog", import.meta.url);
-const output = new URL("./output.html", import.meta.url);
-const outputJS = new URL("./output.js", import.meta.url);
-writeFileSync(input, "");
-watchFile(input, {}, () => {
-	const poggies = new Poggies(readFileSync(input, "utf8"));
-	writeFileSync(
+const input = fromFileUrl(new URL("input.pog", import.meta.url))
+const output = fromFileUrl(new URL("dist/live.html", import.meta.url))
+const outputJS = fromFileUrl(new URL("dist/live.js", import.meta.url))
+Deno.writeTextFileSync(input, "")
+const watcher = Deno.watchFs(input)
+console.log("Live reloading ./input.pog to dist/live.html and dist/live.js")
+
+function clean() {
+	console.log("Bye!")
+	Deno.removeSync(input)
+}
+
+addEventListener("beforeunload", clean)
+addEventListener("unload", clean)
+Deno.addSignalListener("SIGINT", () => {
+	Deno.exit()
+})
+
+for await (const event of watcher) {
+	if (event.kind !== "modify") continue
+	const poggies = new Poggies(Deno.readTextFileSync(input) || "ERROR!")
+	Deno.writeTextFileSync(
 		outputJS,
-		"/*eslint-disable unicorn/no-abusive-eslint-disable*/\n/*eslint-disable*/\nasync function anonymous(__INPUT__){" +
-			poggies.js +
-			"}"
-	);
+		`// @ts-nocheck\nasync function anonymous(__INPUT__,__JSONIFY__=JSON.stringify){${poggies.js}}`,
+	)
+	try {
+		poggies.compile()
+	} catch (error) {
+		console.error(error)
+		console.dir(poggies, { depth: Number.POSITIVE_INFINITY })
+		continue
+	}
+	Deno.writeTextFileSync(
+		outputJS,
+		"// @ts-nocheck\n" + poggies.compile().toString(),
+	)
 	poggies
 		.render(data)
-		.then(html => writeFileSync(output, html))
-		.catch(console.error);
-});
-console.log("Live reloading ./input.pog to ./output.html and ./output.js");
-process.once("SIGINT", () => {
-	unlinkSync(outputJS);
-	unlinkSync(output);
-	unlinkSync(input);
-	process.exit();
-});
+		// eslint-disable-next-line unicorn/prefer-top-level-await
+		.then((html) => {
+			Deno.writeTextFileSync(output, html)
+			console.log("Rendered to ./dist/live.html")
+		}, console.error)
+}

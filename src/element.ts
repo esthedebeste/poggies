@@ -1,5 +1,6 @@
-import { ChildNodes, JSONify, Node } from "./nodes.js";
-import { isTag, isWS, jsonifyfunc, outvar } from "./utils.js";
+import { ChildNodes, Node } from "./nodes.ts"
+import { Reader } from "./reader.ts"
+import { isWS, outvar } from "./utils.ts"
 
 /** Elements that shouldn't have a closing tag */
 const voidElements = new Set([
@@ -17,178 +18,151 @@ const voidElements = new Set([
 	"keygen",
 	"source",
 	"!doctype",
-]);
+])
 class Attribute {
-	constructor(public value: string) {}
-	jsify() {
-		return JSONify(this.value);
-	}
-	/** adds a string to the end of the attribute */
-	add(value: string) {
-		this.value += " " + value;
-	}
-}
-class DynamicAttribute {
 	constructor(public code: string) {}
 	jsify() {
-		return this.code;
+		return this.code
 	}
-	/** adds a string to the end of the attribute */
+	/** adds ` ${value}` to the end of the attribute */
 	add(value: string) {
-		this.code = `(${this.code}) + ${JSONify(value)}`;
+		this.code = `(${this.code})+${JSON.stringify(` ${value}`)}`
 	}
 }
+
 class Flag {
 	jsify() {
-		return "true";
+		return "true"
 	}
 }
-const parseAttributes = (source: string, index: number) => {
-	const attributes: Record<string, Attribute | DynamicAttribute | Flag> = {};
-	while (index < source.length) {
-		while (isWS(source[index]) && index < source.length) index++;
-		if (source[index] === ")") {
-			index++;
-			break;
+function parseAttributes(reader: Reader) {
+	const attributes: Record<
+		string,
+		Attribute | Flag
+	> = {}
+	while (!reader.eof()) {
+		reader.whitespace()
+		if (reader.peek() === ")") {
+			reader.skip(1)
+			break
 		}
-		let key = "";
-		for (; index < source.length && isTag(source[index]); index++)
-			key += source[index];
-		while (isWS(source[index]) && index < source.length) index++;
-		let value = "";
-		let type: typeof Attribute | typeof DynamicAttribute | typeof Flag = Flag;
-		if (source[index] === "=") {
-			type = Attribute;
-			index++;
-			if (source[index] === ">") {
-				type = DynamicAttribute;
-				index++;
+		const key = reader.tag()
+		reader.whitespace()
+		if (reader.peek() === "=") {
+			reader.skip(1)
+		} else {
+			attributes[key] = new Flag()
+			continue
+		} // skip =
+		reader.whitespace()
+		switch (reader.peek()) {
+			case '"':
+			case "'":
+			case "`":
+			case "[":
+			case "(": {
+				const expression = reader.jsExpression()
+				attributes[key] = new Attribute(expression)
+				break
 			}
-			let singleWord = true;
-			if (source[index] === '"') {
-				singleWord = false;
-				index++;
+			case "{": {
+				const expression = reader.jsExpression().slice(1, -1)
+				attributes[key] = new Attribute(expression)
+				break
 			}
-			let escape = 0;
-			for (; index < source.length; index++) {
-				if (source[index] === "\\") escape++;
-				else if (singleWord && (source[index] === ")" || isWS(source[index])))
-					break;
-				else if (source[index] === `"` && escape % 2 === 0) {
-					index++;
-					break;
-				} else if (escape - 1 > 0) {
-					value += "\\".repeat(escape / 2);
-					escape = 0;
-					value += source[index];
-				} else value += source[index];
+			default: // single word string
+			{
+				const string = reader.collect((char) => !(isWS(char) || char === ")"))
+				attributes[key] = new Attribute(JSON.stringify(string))
 			}
 		}
-		attributes[key] = new type(value);
 	}
-	return { attributes, index };
-};
-const isAttr = (kv: [string, any]): kv is [string, Attribute] =>
-	kv[1] instanceof Attribute;
-const isDynAttr = (kv: [string, any]): kv is [string, DynamicAttribute] =>
-	kv[1] instanceof DynamicAttribute;
-const isFlag = (kv: [string, any]): kv is [string, Flag] =>
-	kv[1] instanceof Flag;
+	return attributes
+}
+
 export class VoidElement implements Node {
 	constructor(
 		public tag: string,
-		public attrs: Record<string, Attribute | DynamicAttribute | Flag>
+		public attributes: Record<
+			string,
+			Attribute | Flag
+		>,
 	) {}
 	jsify() {
-		const attrs = Object.entries(this.attrs);
-		if (attrs.length === 0)
-			return { multiline: false, code: JSON.stringify(`<${this.tag}>`) };
-		const staticAttrs =
-			attrs
-				.filter(isAttr)
-				.map(([name, attr]) => ` ${name}=${attr.jsify()}`)
-				.join("") +
-			attrs
-				.filter(isFlag)
-				.map(([name]) => ` ${name}`)
-				.join("");
-		const dynAttrs = attrs.filter(isDynAttr);
-		if (dynAttrs.length === 0)
-			return {
-				multiline: false,
-				code: JSON.stringify(`<${this.tag}${staticAttrs}>`),
-			};
-		let code = JSON.stringify(`<${this.tag}${staticAttrs}`);
-		for (const [name, attr] of dynAttrs)
-			code += `+${JSONify(` ${name}=`)}+${jsonifyfunc}(${attr.jsify()})`;
-		code += '+">"';
-		return { multiline: false, code };
+		const attributes = Object.entries(this.attributes)
+		if (attributes.length === 0) {
+			return { multiline: false, code: JSON.stringify(`<${this.tag}>`) }
+		}
+		let code = JSON.stringify(`<${this.tag}`)
+		for (const [name, attribute] of attributes) {
+			code += attribute instanceof Flag
+				? `+${JSON.stringify(` ${name}`)}`
+				: `+${JSON.stringify(` ${name}="`)}+${attribute.jsify()}+'"'`
+		}
+		code += '+">"'
+		return { multiline: false, code }
 	}
 }
 export class Element extends VoidElement {
 	constructor(
 		public tag: string,
-		public attrs: Record<string, Attribute | DynamicAttribute | Flag>,
-		public children: ChildNodes
+		public attributes: Record<string, Attribute | Attribute | Flag>,
+		public children: ChildNodes,
 	) {
-		super(tag, attrs);
+		super(tag, attributes)
 	}
 	jsify() {
-		const { code } = super.jsify();
-		const { multiline, code: childCode } = this.children.jsify();
-		if (childCode.length === 0)
-			return { multiline, code: code + "+" + JSONify(`</${this.tag}>`) };
+		const { code } = super.jsify()
+		const { multiline, code: childCode } = this.children.jsify()
+		if (childCode.length === 0) {
+			return { multiline, code: code + "+" + JSON.stringify(`</${this.tag}>`) }
+		}
 		return {
 			multiline,
 			code: multiline
-				? `${outvar}+=${code};${childCode}${outvar} += ${JSONify(
-						`</${this.tag}>`
-				  )};`
-				: `${code}+${childCode}+${JSONify(`</${this.tag}>`)}`,
-		};
+				? `${outvar}+=${code};${childCode}${outvar} += ${
+					JSON.stringify(
+						`</${this.tag}>`,
+					)
+				};`
+				: `${code}+${childCode}+${JSON.stringify(`</${this.tag}>`)}`,
+		}
 	}
-	static from(
-		source: string,
-		index: number,
-		isVoid = false
-	): { node: VoidElement | Element; index: number } {
-		const len = source.length;
-		let tag = "";
-		for (; index < len && isTag(source[index]); index++) tag += source[index];
-		let attrs: Record<string, Attribute | DynamicAttribute | Flag> = {};
-		while ("(.#".includes(source[index])) {
-			if (source[index] === "(") {
-				index++;
-				let attributes: Record<string, Attribute | DynamicAttribute | Flag>;
-				({ attributes, index } = parseAttributes(source, index));
-				attrs = { ...attrs, ...attributes };
-			} else if (source[index] === ".") {
-				index++;
-				let clazz = "";
-				for (; index < len && isTag(source[index]); index++)
-					clazz += source[index];
-				if (attrs.class == null) attrs.class = new Attribute(clazz);
-				else if (attrs.class instanceof Flag)
-					attrs.class = new Attribute(clazz);
-				else attrs.class.add(clazz);
-			} else if (source[index] === "#") {
-				index++;
-				let id = "";
-				for (; index < len && isTag(source[index]); index++)
-					id += source[index];
-				attrs.id = new Attribute(id);
+	static from(tag: string, reader: Reader, isVoid = false): VoidElement | Element {
+		let attributes_: Record<string, Attribute | Attribute | Flag> = {}
+		while ("(.#".includes(reader.peek())) {
+			switch (reader.peek()) {
+				case "(": {
+					reader.skip(1)
+					const attributes = parseAttributes(reader)
+					attributes_ = { ...attributes_, ...attributes }
+					break
+				}
+				case ".": {
+					reader.skip(1)
+					const clazz = reader.tag()
+					if (attributes_.class == undefined) attributes_.class = new Attribute(JSON.stringify(clazz))
+					else if (attributes_.class instanceof Flag) {
+						attributes_.class = new Attribute(JSON.stringify(clazz))
+					} else attributes_.class.add(clazz)
+					break
+				}
+				case "#": {
+					reader.skip(1)
+					const id = reader.tag()
+					attributes_.id = new Attribute(JSON.stringify(id))
+					break
+				}
+					// No default
 			}
 		}
-		while (isWS(source[index]) && index < len) index++;
-		let children: ChildNodes;
-		({ children, index } = ChildNodes.from(source, index));
-		if (isVoid || voidElements.has(tag.toLowerCase()))
-			if (children.nodes.length > 0)
-				throw new Error(`${tag} cannot have children`);
-			else return { node: new VoidElement(tag, attrs), index };
-		return {
-			node: new Element(tag, attrs, children),
-			index,
-		};
+		reader.whitespace()
+		const children = ChildNodes.from(reader)
+		if (isVoid || voidElements.has(tag.toLowerCase())) {
+			if (children.nodes.length > 0) {
+				throw new Error(`${tag} cannot have children`)
+			} else return new VoidElement(tag, attributes_)
+		}
+		return new Element(tag, attributes_, children)
 	}
 }

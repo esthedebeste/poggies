@@ -1,49 +1,78 @@
 !doctype(html)
-$link(href target text){
-  a(href=>href target=>target)[>new URL(href).hostname]
+$$list(items){
+    ul {
+        for(item of items){
+            li `${item}`
+        }
+    }
 }
-$list(items){
-    ul<for(item of items){
-      li[>item]
-    }>
+$$row(name thebest){
+  tr {
+    td.name `${name}`
+    td(class=(thebest ? "thebest" : "notthebest")) {
+      if(thebest) "The Best :D"
+      else "Not the Best :("
+    }
+  }
 }
 html(lang=en-US){
     head{
-        title[Test Page]
-        style[
-            #root{
+        title "Test Page"
+        style "
+            #root {
                 font-family: cursive;
             }
-            .green{
+            .green {
                 color: lime;
             }
-            .red{
+            .red {
                 color: red;
             }
-            .bold{
+            .bold {
                 font-weight: bold;
             }
-        ]
+            table {
+                border-collapse: collapse;
+            }
+            table, th, td {
+                border: 3px solid pink;
+            }
+        "
     }
     body#root{
-        h1#hey-world.red.bold[Hello World!]
+        $$link-fr(href target){
+            a(href=(href) target=(target)) `${new URL(href).hostname}`
+        }
+
+        h1#hey-world.red.bold "Hello World!"
         p(
             class="bold green"
             data-close=")"
-        )[:D]
-        $link(href=>`https://${site}.${tld}/` target=_blank)
-        $list(items=>[1,2,3])
-        p.red(hidden)[If this is visible, attributes aren't working properly.]
+        ) ":D"
+        // hooray! a comment!
+        $link-fr(href=`https://${site}.${tld}/` target=_blank)
+        $list(items=[1, 2, 3])
+        p.red(hidden) "If this is visible, attributes aren't working properly."
+        h1 "People:"
+        table{
+            tr{
+                th.name "Name"
+                th.thebest "The Best?"
+            }
+            for(user of users){
+                $row(name=(user.name) thebest=(user.thebest))
+            }
+        }
         br
+        if(ifstatements.working()) "If statements work!"
+        br
+        for(word of forTest.sentence) `${word}`
+        br
+        for(double of doubleTest) {
+            if(double.show) `${double.content}`
+        }
     }
-    <if(ifstatements.working())[If statements work!]>
-    {br}
-    <for(word of forTest.sentence)[>word]>
-    {br}
-    <for(double of doubleTest)<
-       if(double.show)[>double.content]
-    >>
 }
 multielemtest{
-    div[Multiple Parent Elements work!]
+    div "Multiple Parent Elements work!"
 }

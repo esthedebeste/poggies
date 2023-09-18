@@ -1,4 +1,6 @@
 {
-  // Required to compile directly to ES modules.
-  "typescript.preferences.importModuleSpecifierEnding": "js"
+	"deno.enable": true,
+	"[typescript]": {
+		"editor.defaultFormatter": "denoland.vscode-deno"
+	}
 }

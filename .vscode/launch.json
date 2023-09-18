@@ -1,0 +1,25 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"request": "launch",
+			"name": "Launch render-input.ts",
+			"type": "node",
+			"program": "${workspaceFolder}/test/render-input.ts",
+			"cwd": "${workspaceFolder}",
+			"runtimeExecutable": "deno",
+			"runtimeArgs": ["run", "--inspect-wait", "-A"],
+			"attachSimplePort": 9229
+		},
+		{
+			"request": "launch",
+			"name": "Launch bench.ts",
+			"type": "node",
+			"program": "${workspaceFolder}/test/bench.ts",
+			"cwd": "${workspaceFolder}",
+			"runtimeExecutable": "deno",
+			"runtimeArgs": ["run", "--inspect-wait", "-A"],
+			"attachSimplePort": 9229
+		}
+	]
+}
