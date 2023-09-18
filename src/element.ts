@@ -65,11 +65,8 @@ function parseAttributes(reader: Reader) {
 				attributes[key] = new Attribute(expression)
 				break
 			}
-			case "{": {
-				const expression = reader.jsExpression().slice(1, -1)
-				attributes[key] = new Attribute(expression)
-				break
-			}
+			case "{":
+				throw new Error("{ for attributes is reserved for future use")
 			default: // single word string
 			{
 				const string = reader.collect((char) => !(isWS(char) || char === ")"))
