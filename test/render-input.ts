@@ -5,7 +5,7 @@ import { data } from "./utils.ts"
 const input = fromFileUrl(new URL("input.pog", import.meta.url))
 const output = fromFileUrl(new URL("dist/live.html", import.meta.url))
 const outputJS = fromFileUrl(new URL("dist/live.js", import.meta.url))
-Deno.writeTextFileSync(input, "")
+await Deno.copyFile(new URL("bench.pog", import.meta.url), input)
 const watcher = Deno.watchFs(input)
 console.log("Live reloading ./input.pog to dist/live.html and dist/live.js")
 
@@ -20,8 +20,7 @@ Deno.addSignalListener("SIGINT", () => {
 	Deno.exit()
 })
 
-for await (const event of watcher) {
-	if (event.kind !== "modify") continue
+async function render() {
 	const poggies = new Poggies(Deno.readTextFileSync(input) || "ERROR!")
 	Deno.writeTextFileSync(
 		outputJS,
@@ -30,9 +29,9 @@ for await (const event of watcher) {
 	try {
 		poggies.compile()
 	} catch (error) {
-		console.error(error)
 		console.dir(poggies, { depth: Number.POSITIVE_INFINITY })
-		continue
+		console.error(error)
+		return
 	}
 	Deno.writeTextFileSync(
 		outputJS,
@@ -45,4 +44,10 @@ for await (const event of watcher) {
 			Deno.writeTextFileSync(output, html)
 			console.log("Rendered to ./dist/live.html")
 		}, console.error)
+}
+
+await render()
+for await (const event of watcher) {
+	if (event.kind !== "modify") continue
+	await render()
 }

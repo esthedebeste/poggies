@@ -171,6 +171,59 @@ table {
 </table>
 ```
 
+### Slots
+
+Templates can contain slots, which are a way to embed content from the template call site. Maybe an example would help:
+
+```tsx
+$$centered_div {
+  div(style="display: grid; place-items: center;") {
+    div {
+      // embed a slot with `slot!`
+      slot!
+    }
+  }
+}
+
+$centered_div {
+  h1 "Hi!"
+}
+// html output
+<div style="display: grid; place-items: center;">
+  <div>
+    <h1>Hi!</h1>
+  </div>
+</div>
+```
+
+Slots can also have names:
+
+```tsx
+// don't forget to name the slots by the parameters
+$$red_and_blue(red blue) {
+  div(style="color: red;") {
+    // `slot!(name)` for named slots.
+    slot!(red)
+  }
+  div(style="color: blue;") {
+    slot!(blue)
+  }
+}
+
+$red_and_blue(red={
+  h1 "Red!"
+} blue={
+  h1 "Blue!"
+})
+// html output
+<div style="color: red;">
+  <h1>Red!</h1>
+</div>
+<div style="color: blue;">
+  <h1>Blue!</h1>
+</div>
+```
+
 <br><br><br>
 
 ### Extras
@@ -178,7 +231,7 @@ table {
 <img src="https://cdn.betterttv.net/emote/5d38aaa592fc550c2d5996b8/1x" alt="peepoClap" align="left"/>
 You made it to the bottom of the readme, it's time for some neat extras!
 
-- Poggies syntax also supports # and . as shorthands for class and id! (They
+- Poggies syntax supports # and . as shorthands for class and id! (They
   kind of look like CSS selectors) Example:
   `h1#woah.red.bold[I'm red, I'm bold, and my ID is woah!]`
 - Attributes can have no value, just like in normal HTML! For example:
@@ -186,8 +239,10 @@ You made it to the bottom of the readme, it's time for some neat extras!
 - If an attribute doesn't contain any spaces, you can insert it without quotes,
   `a(href=https://example.com/)[like this!]`
   <small>PS, if it does contain a ), this won't work of course.</small>
+- Instead of `a(href=(href))`, you can also use `a((href))`!
 - You can stack quotes and {}! For example, to put a line break in the middle
-  of a span: `span "Line 1"{br}"Line 2"` ==> `<span>Line 1<br/>Line 2</span>`
+  of a span: `span "Line 1" { br } "Line 2"` ==> `<span>Line 1<br/>Line 2</span>`
+  - This same example can also be written `span { "Line 1" br "Line 2" }`, specifically because `br` is a void-element and can't have child nodes.
 - renderFile caches files, so your poor CPU doesn't have to parse everything
   again! In a small test this lead to a huge ~3.6ms to ~0.015ms improvement!
 - Poggies is deno-, node-, and browser-compatible!

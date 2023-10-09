@@ -24,18 +24,34 @@ export class Reader {
 	skip(n: number) {
 		for (let index = 0; index < n; index++) this.next()
 	}
+	/**
+	 * Checks if the next characters are equal to `string`, and if so, skips them.
+	 * @param string String to check for
+	 * @returns `true` if skipped, `false` if not
+	 */
+	check(string: string): boolean {
+		if (this.source.slice(this.index, this.index + string.length) === string) {
+			this.skip(string.length)
+			return true
+		}
+		return false
+	}
 	eof() {
 		return this.index >= this.source.length
 	}
-	collect(predicate: (char: string) => boolean) {
+	collect(predicate: (char: string, index: number) => boolean) {
 		let result = ""
-		while (this.index < this.source.length && predicate(this.peek())) {
+		const start = this.index
+		while (this.index < this.source.length && predicate(this.peek(), this.index - start)) {
 			result += this.next()
 		}
 		return result
 	}
 	tag() {
 		return this.collect(isTag)
+	}
+	identifier() {
+		return this.collect((char, index) => index > 0 ? /\p{ID_Continue}/u.test(char) : /\p{ID_Start}/u.test(char))
 	}
 	skipJsString(): void {
 		let escaped = false
@@ -47,7 +63,7 @@ export class Reader {
 			if (escaped) escaped = false // Skip past the escaped character
 			else if (char === "\\") escaped = true // Escape the next character
 			else if (quote === "`" && char === "$" && this.peek(1) === "{") {
-				this.skip(2) // Skip past $
+				this.skip(2) // Skip past ${
 				this.jsExpression() // Skip past { ... }
 			} else if (char === quote) {
 				this.next() // Skip past the closing quote
@@ -67,7 +83,7 @@ export class Reader {
 		while (!this.eof()) {
 			const char = this.peek()
 			if (depth === 0 && (isClose(char) || isWS(char))) {
-				return this.source.slice(start, this.index)
+				return this.source.slice(start, this.index).trim()
 			} else if (isOpen(char)) {
 				depth++
 				this.next()

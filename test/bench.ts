@@ -1,7 +1,7 @@
 import { Poggies } from "../src/poggies.ts"
 import { data } from "./utils.ts"
 
-const source = Deno.readTextFileSync(new URL("test.pog", import.meta.url))
+const source = Deno.readTextFileSync(new URL("bench.pog", import.meta.url))
 Deno.bench("parse", async () => {
 	new Poggies(source)
 })

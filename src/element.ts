@@ -19,7 +19,7 @@ const voidElements = new Set([
 	"source",
 	"!doctype",
 ])
-class Attribute {
+export class Attribute {
 	constructor(public code: string) {}
 	jsify() {
 		return this.code
@@ -30,7 +30,14 @@ class Attribute {
 	}
 }
 
-class Flag {
+export class SlotAttribute {
+	constructor(public children: ChildNodes) {}
+	jsify() {
+		return this.children.jsify()
+	}
+}
+
+export class Flag {
 	jsify() {
 		return "true"
 	}
@@ -38,7 +45,7 @@ class Flag {
 function parseAttributes(reader: Reader) {
 	const attributes: Record<
 		string,
-		Attribute | Flag
+		Attribute | SlotAttribute | Flag
 	> = {}
 	while (!reader.eof()) {
 		reader.whitespace()
@@ -46,16 +53,27 @@ function parseAttributes(reader: Reader) {
 			reader.skip(1)
 			break
 		}
+		if (reader.check("(")) {
+			// a((href)) => a(href=(href)) shorthand
+			const name = reader.identifier()
+			if (!reader.check(")")) {
+				throw new Error("expected ) after tag in attribute shortcut (`a((href))` => `a(href=(href))`)")
+			}
+			attributes[name] = new Attribute(name)
+			continue
+		}
 		const key = reader.tag()
 		reader.whitespace()
-		if (reader.peek() === "=") {
-			reader.skip(1)
-		} else {
+		if (!reader.check("=")) {
 			attributes[key] = new Flag()
 			continue
 		} // skip =
-		reader.whitespace()
 		switch (reader.peek()) {
+			case "{": {
+				const children = ChildNodes.from(reader)
+				attributes[key] = new SlotAttribute(children)
+				break
+			}
 			case '"':
 			case "'":
 			case "`":
@@ -65,8 +83,6 @@ function parseAttributes(reader: Reader) {
 				attributes[key] = new Attribute(expression)
 				break
 			}
-			case "{":
-				throw new Error("{ for attributes is reserved for future use")
 			default: // single word string
 			{
 				const string = reader.collect((char) => !(isWS(char) || char === ")"))
@@ -82,19 +98,22 @@ export class VoidElement implements Node {
 		public tag: string,
 		public attributes: Record<
 			string,
-			Attribute | Flag
+			Attribute | SlotAttribute | Flag
 		>,
 	) {}
 	jsify() {
-		const attributes = Object.entries(this.attributes)
+		const attributes = Object.entries(this.attributes) as [string, Attribute | Flag][]
 		if (attributes.length === 0) {
 			return { multiline: false, code: JSON.stringify(`<${this.tag}>`) }
+		}
+		if (attributes.some((attribute) => attribute[1] instanceof SlotAttribute)) {
+			throw new Error("Non-template elements can't have slot attributes")
 		}
 		let code = JSON.stringify(`<${this.tag}`)
 		for (const [name, attribute] of attributes) {
 			code += attribute instanceof Flag
 				? `+${JSON.stringify(` ${name}`)}`
-				: `+${JSON.stringify(` ${name}="`)}+${attribute.jsify()}+'"'`
+				: `+${JSON.stringify(` ${name}="`)}+${attribute.code}+'"'`
 		}
 		code += '+">"'
 		return { multiline: false, code }
@@ -103,7 +122,7 @@ export class VoidElement implements Node {
 export class Element extends VoidElement {
 	constructor(
 		public tag: string,
-		public attributes: Record<string, Attribute | Attribute | Flag>,
+		public attributes: Record<string, Attribute | SlotAttribute | Flag>,
 		public children: ChildNodes,
 	) {
 		super(tag, attributes)
@@ -125,8 +144,11 @@ export class Element extends VoidElement {
 				: `${code}+${childCode}+${JSON.stringify(`</${this.tag}>`)}`,
 		}
 	}
+	static from(tag: string, reader: Reader): Element
+	static from(tag: string, reader: Reader, isVoid: false): Element
+	static from(tag: string, reader: Reader, isVoid: true): VoidElement
 	static from(tag: string, reader: Reader, isVoid = false): VoidElement | Element {
-		let attributes_: Record<string, Attribute | Attribute | Flag> = {}
+		let attributes_: Record<string, Attribute | SlotAttribute | Flag> = {}
 		while ("(.#".includes(reader.peek())) {
 			switch (reader.peek()) {
 				case "(": {
@@ -139,8 +161,9 @@ export class Element extends VoidElement {
 					reader.skip(1)
 					const clazz = reader.tag()
 					if (attributes_.class == undefined) attributes_.class = new Attribute(JSON.stringify(clazz))
-					else if (attributes_.class instanceof Flag) {
-						attributes_.class = new Attribute(JSON.stringify(clazz))
+					else if (attributes_.class instanceof Flag) attributes_.class = new Attribute(JSON.stringify(clazz))
+					else if (attributes_.class instanceof SlotAttribute) {
+						throw new TypeError("Can't use .class shortcut if class is already defined as a slot attribute")
 					} else attributes_.class.add(clazz)
 					break
 				}
@@ -154,12 +177,10 @@ export class Element extends VoidElement {
 			}
 		}
 		reader.whitespace()
-		const children = ChildNodes.from(reader)
 		if (isVoid || voidElements.has(tag.toLowerCase())) {
-			if (children.nodes.length > 0) {
-				throw new Error(`${tag} cannot have children`)
-			} else return new VoidElement(tag, attributes_)
+			return new VoidElement(tag, attributes_)
 		}
+		const children = ChildNodes.from(reader)
 		return new Element(tag, attributes_, children)
 	}
 }

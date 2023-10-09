@@ -1,22 +1,13 @@
 !doctype(html)
-$$list(items){
+$$list(items) {
     ul {
-        for(item of items){
+        for(item of items) {
             li `${item}`
         }
     }
 }
-$$row(name thebest){
-  tr {
-    td.name `${name}`
-    td(class=(thebest ? "thebest" : "notthebest")) {
-      if(thebest) "The Best :D"
-      else "Not the Best :("
-    }
-  }
-}
-html(lang=en-US){
-    head{
+html(lang=en-US) {
+    head {
         title "Test Page"
         style "
             #root {
@@ -39,9 +30,9 @@ html(lang=en-US){
             }
         "
     }
-    body#root{
-        $$link-fr(href target){
-            a(href=(href) target=(target)) `${new URL(href).hostname}`
+    body#root {
+        $$link-fr(href target) {
+            a((href) (target)) `${new URL(href).hostname}`
         }
 
         h1#hey-world.red.bold "Hello World!"
@@ -54,25 +45,47 @@ html(lang=en-US){
         $list(items=[1, 2, 3])
         p.red(hidden) "If this is visible, attributes aren't working properly."
         h1 "People:"
-        table{
-            tr{
+        table {
+            tr {
                 th.name "Name"
                 th.thebest "The Best?"
+                th "Slotted"
+                th "Default Slotted"
             }
-            for(user of users){
-                $row(name=(user.name) thebest=(user.thebest))
+            $$row(name thebest namedslot) {
+                tr {
+                    td.name `${name}`
+                    td(class=(thebest ? "thebest" : "notthebest")) {
+                        if(thebest) "The Best :D"
+                        else "Not the Best :("
+                    }
+                    td { slot!(namedslot) }
+                    td { slot! }
+                }
+            }
+            for(user of users) {
+                $row(name=(user.name) thebest=(user.thebest) namedslot={
+                    for(character of "^_^") {
+                        `${character}`
+                    }    
+                }) {
+                    for(character of "Yep!") {
+                        `${character}`
+                    }
+                }
             }
         }
         br
         if(ifstatements.working()) "If statements work!"
         br
-        for(word of forTest.sentence) `${word}`
+        for(word of forTest.sentence) `${word} `
         br
         for(double of doubleTest) {
-            if(double.show) `${double.content}`
+            if(double.show) `${double.content} `
         }
     }
 }
-multielemtest{
+
+multielemtest {
     div "Multiple Parent Elements work!"
 }

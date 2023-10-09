@@ -1,7 +1,7 @@
 import { Element } from "./element.ts"
 import { Reader } from "./reader.ts"
 import { TemplateDeclaration, TemplateUsage } from "./templating.ts"
-import { escapeHTML, escapehtmlfunc, escapeJSON, isTag, outvar } from "./utils.ts"
+import { defaultslot, escapeHTML, escapehtmlfunc, escapeJSON, isStringDelimiter, isTag, outvar } from "./utils.ts"
 
 export interface JsifyResult {
 	multiline: boolean
@@ -16,6 +16,33 @@ class DynamicText implements Node {
 	jsify() {
 		return { multiline: false, code: this.code }
 	}
+	static from(reader: Reader) {
+		const delimeter = reader.peek()
+		switch (delimeter) {
+			case '"':
+			case "'": {
+				const string = reader.jsString()
+				const text = new DynamicText(delimeter + escapeJSON(escapeHTML(string.slice(1, -1))) + delimeter)
+				reader.whitespace()
+				return text
+			}
+			case "`": {
+				const expression = reader.jsExpression()
+				const text = new DynamicText(`${escapehtmlfunc}(${expression})`)
+				reader.whitespace()
+				return text
+			}
+		}
+		throw new Error(`Invalid delimeter ${delimeter}`)
+	}
+}
+
+/** technically just embeds the value of that variable right into the html. :p */
+class SlotNode implements Node {
+	constructor(public name: string) {}
+	jsify() {
+		return { multiline: false, code: this.name }
+	}
 }
 
 class Dynamic implements Node {
@@ -26,7 +53,7 @@ class Dynamic implements Node {
 		public children: ChildNodes,
 	) {}
 	jsify() {
-		let code = this.type === "for" && !/^\s*.+\s+(of|in)\s+/.test(this.declaration)
+		let code = this.type === "for" && !/^\s*(const|let|var|;)\s*(of|in)\s*/u.test(this.declaration)
 			// Prevent for...of and for...in from leaking into global scope
 			? `for(let ${this.declaration}){`
 			: `${this.type}(${this.declaration}){`
@@ -40,18 +67,7 @@ class Dynamic implements Node {
 			if (type === "else") return DynamicElse.from(reader)
 			else throw new Error(`Expected ( after dynamic name ${type}`)
 		}
-		let content = ""
-		let open = 1
-		reader.skip(1) // Skip past the initial (
-		while (open > 0) {
-			// todo use skipJsExpression here?
-			const c = reader.next()
-			content += c
-			if (c === "(") open++
-			else if (c === ")") open--
-		}
-		content = content.slice(0, -1) // Remove trailing )
-		reader.whitespace()
+		const content = reader.jsExpression().slice(1, -1)
 		const children = ChildNodes.from(reader)
 		return new Dynamic(type, content, children)
 	}
@@ -107,9 +123,12 @@ export class ChildNodes implements Node {
 				case "{": {
 					reader.next()
 					reader.whitespace()
+					const extra = /^["$'`]$/
 					let c = reader.peek()
-					while (isTag(c) || c === "$") {
-						if (c === "$" && reader.peek(1) == "$") {
+					while (isTag(c) || extra.test(c)) {
+						if (isStringDelimiter(c)) {
+							nodes.push(DynamicText.from(reader)) // { "text" } syntax
+						} else if (c === "$" && reader.peek(1) == "$") {
 							reader.skip(2) // Skip past $$
 							const name = reader.tag()
 							nodes.push(TemplateDeclaration.from(name, reader))
@@ -121,27 +140,30 @@ export class ChildNodes implements Node {
 							const tag = reader.tag()
 							if (Dynamic.dynamics.has(tag)) {
 								nodes.push(Dynamic.from(tag, reader))
+							} else if (tag === "slot!") {
+								reader.whitespace()
+								let name = defaultslot
+								if (reader.check("(")) {
+									name = reader.identifier()
+									reader.whitespace()
+									if (!reader.check(")")) throw new Error("Expected ) to close slot name")
+								}
+								nodes.push(new SlotNode(name))
 							} else {
 								nodes.push(Element.from(tag, reader))
 							}
 						}
+						reader.whitespace()
 						c = reader.peek()
 					}
-					reader.next()
 					reader.whitespace()
+					if (!reader.check("}")) throw new Error("Expected } to close child nodes")
 					break
 				}
+				case "`":
 				case '"':
 				case "'": {
-					const string = reader.jsString()
-					nodes.push(new DynamicText(c + escapeJSON(escapeHTML(string.slice(1, -1))) + c))
-					reader.whitespace()
-					break
-				}
-				case "`": {
-					const string = reader.jsString()
-					nodes.push(new DynamicText(`${escapehtmlfunc}(${string})`))
-					reader.whitespace()
+					nodes.push(DynamicText.from(reader))
 					break
 				}
 				default: {

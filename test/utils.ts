@@ -16,11 +16,11 @@ console.timeEnd = function timeEnd(name: string) {
 export const data = {
 	site: "example",
 	tld: "com",
-	forTest: { sentence: ["For ", "of ", "loops ", "work!"] },
+	forTest: { sentence: ["For", "of", "loops", "work!"] },
 	ifstatements: { working: () => true },
 	doubleTest: [
-		{ show: true, content: "For and If combined is " },
-		{ show: false, content: "not " },
+		{ show: true, content: "For and If combined is" },
+		{ show: false, content: "not" },
 		{ show: true, content: "working!" },
 	],
 	first: 12,
@@ -37,4 +37,5 @@ export const data = {
 			thebest: false,
 		},
 	],
+	add: (a: number, b: number) => a + b,
 }
