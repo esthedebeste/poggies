@@ -46,7 +46,7 @@ class SlotNode implements Node {
 }
 
 class Dynamic implements Node {
-	static readonly dynamics = new Set(["if", "else", "for"])
+	static readonly dynamics = new Set(["if", "else", "for", "while"])
 	constructor(
 		public type: string,
 		public declaration: string,
