@@ -2,6 +2,7 @@
   "version": "3",
   "packages": {
     "specifiers": {
+      "npm:@types/node": "npm:@types/node@18.16.9",
       "npm:@typescript-eslint/eslint-plugin@^6.7.2": "npm:@typescript-eslint/eslint-plugin@6.7.2_@typescript-eslint+parser@6.7.2__eslint@8.49.0__typescript@5.2.2_eslint@8.49.0_typescript@5.2.2",
       "npm:@typescript-eslint/parser@^6.7.2": "npm:@typescript-eslint/parser@6.7.2_eslint@8.49.0_typescript@5.2.2",
       "npm:esbuild@^0.19.3": "npm:esbuild@0.19.3",
@@ -188,6 +189,10 @@
       },
       "@types/json-schema@7.0.13": {
         "integrity": "sha512-RbSSoHliUbnXj3ny0CNFOoxrIDV6SUGyStHsvDqosw6CkdPV8TtWGlfecuK4ToyMEAql6pzNxgCFKanovUzlgQ==",
+        "dependencies": {}
+      },
+      "@types/node@18.16.9": {
+        "integrity": "sha512-IeB32oIV4oGArLrd7znD2rkHQ6EDCM+2Sr76dJnrHwv9OHBTTM6nuDLK9bmikXzPa0ZlWMWtRGo/Uw4mrzQedA==",
         "dependencies": {}
       },
       "@types/normalize-package-data@2.4.1": {
