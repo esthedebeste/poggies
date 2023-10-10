@@ -58,16 +58,22 @@ export class Reader {
 		const startLine = this.line,
 			startColumn = this.column
 		const quote = this.next() // Skip past the initial quote
-		for (; !this.eof(); this.next()) {
+		for (; !this.eof();) {
 			const char = this.peek()
-			if (escaped) escaped = false // Skip past the escaped character
-			else if (char === "\\") escaped = true // Escape the next character
-			else if (quote === "`" && char === "$" && this.peek(1) === "{") {
-				this.skip(2) // Skip past ${
+			if (escaped) {
+				escaped = false // Skip past the escaped character
+				this.next()
+			} else if (char === "\\") {
+				escaped = true // Escape the next character
+				this.next()
+			} else if (quote === "`" && char === "$" && this.peek(1) === "{") {
+				this.skip(1) // Skip past $
 				this.jsExpression() // Skip past { ... }
 			} else if (char === quote) {
 				this.next() // Skip past the closing quote
 				return // End of the string!
+			} else {
+				this.next()
 			}
 		}
 		throw new Error(`Unmatched string from (${startLine}:${startColumn})`)
@@ -82,14 +88,15 @@ export class Reader {
 		const start = this.index
 		while (!this.eof()) {
 			const char = this.peek()
-			if (depth === 0 && (isClose(char) || isWS(char))) {
-				return this.source.slice(start, this.index).trim()
-			} else if (isOpen(char)) {
+			if (isOpen(char)) {
 				depth++
 				this.next()
 			} else if (isClose(char)) {
 				depth--
 				this.next()
+				if (depth === 0) {
+					return this.source.slice(start, this.index).trim()
+				}
 			} else if (isStringDelimiter(char)) this.skipJsString()
 			else this.next()
 		}

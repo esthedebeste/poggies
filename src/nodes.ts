@@ -27,7 +27,7 @@ class DynamicText implements Node {
 				return text
 			}
 			case "`": {
-				const expression = reader.jsExpression()
+				const expression = reader.jsString()
 				const text = new DynamicText(`${escapehtmlfunc}(${expression})`)
 				reader.whitespace()
 				return text
@@ -53,7 +53,7 @@ class Dynamic implements Node {
 		public children: ChildNodes,
 	) {}
 	jsify() {
-		let code = this.type === "for" && !/^\s*(const|let|var|;)\s*(of|in)\s*/u.test(this.declaration)
+		let code = this.type === "for" && !/^\s*(const|let|var|;)\s*(of|in)\s*/.test(this.declaration)
 			// Prevent for...of and for...in from leaking into global scope
 			? `for(let ${this.declaration}){`
 			: `${this.type}(${this.declaration}){`
@@ -117,6 +117,7 @@ export class ChildNodes implements Node {
 		const nodes: Node[] = []
 		loop:
 		while (!reader.eof()) {
+			reader.whitespace()
 			const c = reader.peek()
 			switch (c) {
 				// Children
