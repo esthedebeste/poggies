@@ -6,7 +6,6 @@ export const isWS = (char: string) => /^\s+$/.test(char)
 
 export const inputvar = "__INPUT__"
 export const outvar = "__OUT__"
-export const jsonifyfunc = "__JSONIFY__"
 export const defaultslot = "__DEFAULT_SLOT__"
 
 export const isOpen = (char: string) => /^[([{]$/.test(char)
@@ -33,12 +32,11 @@ export const has = Function.prototype.call.bind(Object.prototype.hasOwnProperty)
 
 const htmlEscapeMap = {
 	'"': "&quot;",
-	"'": "&apos;",
 	"&": "&amp;",
 	"<": "&lt;",
 	">": "&gt;",
 }
-const htmlEscapeRegex = /["&'<>]/g
+const htmlEscapeRegex = /["&<>]/g
 export const escapeHTML = (string: string) =>
 	string.replaceAll(
 		htmlEscapeRegex,
@@ -47,8 +45,8 @@ export const escapeHTML = (string: string) =>
 
 // for inside of generated code
 export const escapeHTMLSource = `\
-const __HTML_ESCAPE_MAP__={'"': "&quot;","'": "&apos;","&": "&amp;","<": "&lt;",">": "&gt;"}
-const __HTML_ESCAPE_REGEX__=/["&'<>]/g
+const __HTML_ESCAPE_MAP__={'"': "&quot;","&": "&amp;","<": "&lt;",">": "&gt;"}
+const __HTML_ESCAPE_REGEX__=/["&<>]/g
 const __ESCAPE_HTML__=s=>s.replace(__HTML_ESCAPE_REGEX__,c=>__HTML_ESCAPE_MAP__[c])
 ` // vitally important newline
 export const escapehtmlfunc = "__ESCAPE_HTML__"
