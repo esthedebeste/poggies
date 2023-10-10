@@ -21,7 +21,13 @@ Deno.addSignalListener("SIGINT", () => {
 })
 
 async function render() {
-	const poggies = new Poggies(Deno.readTextFileSync(input) || "ERROR!")
+	let poggies: Poggies
+	try {
+		poggies = new Poggies(Deno.readTextFileSync(input) || " FILE READ ERROR!")
+	} catch {
+		console.error("Failed to parse :(")
+		return
+	}
 	Deno.writeTextFileSync(
 		outputJS,
 		`// @ts-nocheck\nasync function anonymous(__INPUT__,__JSONIFY__=JSON.stringify){${poggies.js}}`,

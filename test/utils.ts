@@ -1,17 +1,5 @@
-// deno does these without decimals, polyfill with more precision
-const timers = new Map<string, number>()
-console.time = function time(name: string) {
-	timers.set(name, performance.now())
-}
-console.timeEnd = function timeEnd(name: string) {
-	const end = performance.now()
-	const start = timers.get(name)
-	if (start === undefined) throw new Error("Timer not started")
-	const ms = end - start
-	console.log(
-		`${name}: ${ms.toFixed(10).replace(/0+$/, "")}ms`,
-	)
-}
+import { assertEquals } from "https://deno.land/std@0.201.0/assert/mod.ts"
+import { Poggies } from "../src/poggies.ts"
 
 export const data = {
 	site: "example",
@@ -38,4 +26,31 @@ export const data = {
 		},
 	],
 	add: (a: number, b: number) => a + b,
+	chanceTrue: true,
+	chanceFalse: false,
+	href: "https://example.com/",
 }
+
+export const checker = (t: Deno.TestContext) => (name: string, source: string, expected: string) =>
+	t.step(name, async () => {
+		const poggies = new Poggies(source)
+		let result: string
+		try {
+			result = await poggies.render(data)
+		} catch (error) {
+			console.error(poggies.javascript())
+			throw error
+		}
+		try {
+			assertEquals(result.replaceAll("</", "\n</"), expected.replaceAll("</", "\n</"))
+		} catch (readableError) {
+			try {
+				assertEquals(
+					result.replaceAll(/\s+/g, ""),
+					expected.replaceAll(/\s+/g, ""),
+				)
+			} catch {
+				throw readableError
+			}
+		}
+	})

@@ -18,6 +18,7 @@ Deno.test("whitespace", async (t) => {
 	})
 })
 
+/** Testing the most hacky part of the parser the most */
 Deno.test("jsExpression", async (t) => {
 	await t.step("last argument", () => {
 		const source = "$foo(arg=[1, 2, 3])"
