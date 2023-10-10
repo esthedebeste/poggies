@@ -5,11 +5,13 @@
       "npm:@types/node": "npm:@types/node@18.16.9",
       "npm:@typescript-eslint/eslint-plugin@^6.7.2": "npm:@typescript-eslint/eslint-plugin@6.7.2_@typescript-eslint+parser@6.7.2__eslint@8.49.0__typescript@5.2.2_eslint@8.49.0_typescript@5.2.2",
       "npm:@typescript-eslint/parser@^6.7.2": "npm:@typescript-eslint/parser@6.7.2_eslint@8.49.0_typescript@5.2.2",
+      "npm:esbuild": "npm:esbuild@0.19.3",
       "npm:esbuild@^0.19.3": "npm:esbuild@0.19.3",
       "npm:eslint-config-prettier@^9.0.0": "npm:eslint-config-prettier@9.0.0_eslint@8.49.0",
       "npm:eslint-plugin-unicorn@^48.0.1": "npm:eslint-plugin-unicorn@48.0.1_eslint@8.49.0",
       "npm:eslint@^8.49.0": "npm:eslint@8.49.0",
       "npm:prettier@^3.0.3": "npm:prettier@3.0.3",
+      "npm:typescript": "npm:typescript@5.2.2",
       "npm:typescript@^5.2.2": "npm:typescript@5.2.2"
     },
     "npm": {
