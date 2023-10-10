@@ -5,16 +5,16 @@
 Poggies is a simple 0-dependencies HTML templating engine, with a very simple
 syntax.
 
-```poggies
+```tsx
 !doctype(html)
 html(lang=en-US) {
     head {
         title "Example Page"
         style "
-            #header{
+            #header {
               text-align: center;
             }
-            .red{
+            .red {
                 color: red;
             }
         "
@@ -62,7 +62,7 @@ Poggies also supports JavaScript in the templates (and async/await syntax!)
 
 To add dynamic elements to your page, you can use template strings!
 
-```
+```tsx
 h1(class="red bold") `six plus six is ${6+6}`
 ```
 
@@ -107,12 +107,12 @@ You can add Elements to the children of an object dynamically!
 
 ```tsx
 // wow.pog
-div[For ]{
-  for(word of words) `${word}`
+div "For " {
+  for(word of words) `${word} `
 }
 // js
 const html = await renderFile("./wow.pog", {
-	words: ["loops ", "are ", "cool"],
+	words: ["loops", "are", "cool"],
 })
 // html output
 <div>For loops are cool</div>
@@ -233,15 +233,15 @@ You made it to the bottom of the readme, it's time for some neat extras!
 
 - Poggies syntax supports # and . as shorthands for class and id! (They
   kind of look like CSS selectors) Example:
-  `h1#woah.red.bold[I'm red, I'm bold, and my ID is woah!]`
+  `h1#woah.red.bold "I'm red, I'm bold, and my ID is woah!"`
 - Attributes can have no value, just like in normal HTML! For example:
-  `h1(hidden)[You can't see me]`
+  `h1(hidden) "You can't see me"`
 - If an attribute doesn't contain any spaces, you can insert it without quotes,
-  `a(href=https://example.com/)[like this!]`
+  `a(href=https://example.com/) "like this!"`
   <small>PS, if it does contain a ), this won't work of course.</small>
 - Instead of `a(href=(href))`, you can also use `a((href))`!
 - You can stack quotes and {}! For example, to put a line break in the middle
-  of a span: `span "Line 1" { br } "Line 2"` ==> `<span>Line 1<br/>Line 2</span>`
+  of a span: `span "Line 1" { br } "Line 2"` ==> `<span>Line 1<br>Line 2</span>`
   - This same example can also be written `span { "Line 1" br "Line 2" }`, specifically because `br` is a void-element and can't have child nodes.
 - renderFile caches files, so your poor CPU doesn't have to parse everything
   again! In a small test this lead to a huge ~3.6ms to ~0.015ms improvement!
