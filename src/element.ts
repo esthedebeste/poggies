@@ -76,7 +76,11 @@ function parseAttributes(reader: Reader) {
 			}
 			case '"':
 			case "'":
-			case "`":
+			case "`": {
+				const string = reader.jsString()
+				attributes[key] = new Attribute(string)
+				break
+			}
 			case "[":
 			case "(": {
 				const expression = reader.jsExpression()
