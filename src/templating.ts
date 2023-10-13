@@ -24,14 +24,14 @@ export class TemplateDeclaration implements Node {
 				[...this.properties, defaultslot].join(
 					",",
 				)
-			}})=>${multiline ? `{let ${outvar}="";${code};return ${outvar};}` : code};`,
+			}})=>${multiline ? `{let ${outvar}="";${code};return ${outvar};}` : code || '""'};`,
 		}
 	}
 	static from(name: string, reader: Reader): TemplateDeclaration {
 		let properties: string[] = []
 		if (reader.check("(")) {
 			const text = reader.collect((char) => char !== ")")
-			properties = text.split(/\s+/).map((s) => s.trim())
+			properties = text.split(/\s+/).map((s) => s.trim()).filter((s) => s.length > 0)
 			if (!reader.check(")")) throw new Error("Invalid template tag, no closing `)`")
 		}
 		const children = ChildNodes.from(reader)

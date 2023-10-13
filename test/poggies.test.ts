@@ -266,4 +266,18 @@ html(lang=en-US) {
       </div>
     </multielemtest>`,
 	)
+
+})
+
+Deno.test("checks", async (t) => {
+  const check = checker(t)
+  
+  await check(
+    "empty template",
+    `
+    $$thing() 
+    $thing
+    `,
+    "" 
+  )
 })
