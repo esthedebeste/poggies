@@ -112,7 +112,7 @@ export class ChildNodes implements Node {
 		if (hasML && !lastML) result += ";"
 		return { multiline: hasML, code: result }
 	}
-	static from(reader: Reader): ChildNodes {
+	static from(reader: Reader, scriptHandling = false): ChildNodes {
 		reader.whitespace()
 		const nodes: Node[] = []
 		loop:
@@ -122,6 +122,14 @@ export class ChildNodes implements Node {
 			switch (c) {
 				// Children
 				case "{": {
+					if (scriptHandling) {
+						// script { const hi = 1; }
+						// style { .hi { color: red; } }
+						const code = reader.jsExpression().slice(1, -1)
+						nodes.push(new DynamicText(JSON.stringify(code)))
+						reader.whitespace()
+						break
+					}
 					reader.next()
 					reader.whitespace()
 					const extra = /^["$'`]$/

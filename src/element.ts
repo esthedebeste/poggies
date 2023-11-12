@@ -184,7 +184,7 @@ export class Element extends VoidElement {
 		if (isVoid || voidElements.has(tag.toLowerCase())) {
 			return new VoidElement(tag, attributes_)
 		}
-		const children = ChildNodes.from(reader)
+		const children = ChildNodes.from(reader, tag === "script" || tag === "style")
 		return new Element(tag, attributes_, children)
 	}
 }
