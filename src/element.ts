@@ -1,6 +1,6 @@
 import { ChildNodes, Node } from "./nodes.ts"
 import { Reader } from "./reader.ts"
-import { isWS, outvar } from "./utils.ts"
+import { inline, isWS, JsifyResult } from "./utils.ts"
 
 /** Elements that shouldn't have a closing tag */
 const voidElements = new Set([
@@ -97,61 +97,66 @@ function parseAttributes(reader: Reader) {
 	return attributes
 }
 
-export class VoidElement implements Node {
-	constructor(
-		public tag: string,
-		public attributes: Record<
-			string,
-			Attribute | SlotAttribute | Flag
-		>,
-	) {}
-	jsify() {
-		const attributes = Object.entries(this.attributes) as [string, Attribute | Flag][]
-		if (attributes.length === 0) {
-			return { multiline: false, code: JSON.stringify(`<${this.tag}>`) }
-		}
-		if (attributes.some((attribute) => attribute[1] instanceof SlotAttribute)) {
-			throw new Error("Non-template elements can't have slot attributes")
-		}
-		let code = JSON.stringify(`<${this.tag}`)
-		for (const [name, attribute] of attributes) {
-			code += attribute instanceof Flag
-				? `+${JSON.stringify(` ${name}`)}`
-				: `+${JSON.stringify(` ${name}="`)}+${attribute.code}+'"'`
-		}
-		code += '+">"'
-		return { multiline: false, code }
+export class WithBlock {
+	constructor(public script?: ChildNodes) {}
+	static from(reader: Reader) {
+		reader.whitespace()
+		if (!reader.check("with")) return
+		reader.whitespace()
+		if (reader.check("script")) {
+			reader.whitespace()
+			return new WithBlock(Element.from("script", reader).children)
+		} else throw new Error("Expected script after with")
 	}
 }
-export class Element extends VoidElement {
+
+export class Element implements Node {
 	constructor(
 		public tag: string,
 		public attributes: Record<string, Attribute | SlotAttribute | Flag>,
-		public children: ChildNodes,
-	) {
-		super(tag, attributes)
-	}
+		public children?: ChildNodes,
+		public withBlock?: WithBlock,
+	) {}
 	jsify() {
-		const { code } = super.jsify()
-		const { multiline, code: childCode } = this.children.jsify()
-		if (childCode.length === 0) {
-			return { multiline, code: code + "+" + JSON.stringify(`</${this.tag}>`) }
+		const attributes = Object.entries(this.attributes) as [string, Attribute | Flag][]
+		if (attributes.some((attribute) => attribute[1] instanceof SlotAttribute)) {
+			throw new Error("Non-template elements can't have slot attributes")
 		}
-		return {
-			multiline,
-			code: multiline
-				? `${outvar}+=${code};${childCode}${outvar} += ${
-					JSON.stringify(
-						`</${this.tag}>`,
-					)
-				};`
-				: `${code}+${childCode}+${JSON.stringify(`</${this.tag}>`)}`,
+		let code = JsifyResult.add(
+			inline(JSON.stringify(`<${this.tag}`)),
+			...attributes.flatMap(([name, attribute]) =>
+				attribute instanceof Flag ? [inline(`" ${name}"`)] : [
+					inline(`" ${name}=\\""`),
+					inline(attribute.jsify()),
+					inline('"\\""'),
+				]
+			),
+			inline('">"'),
+		)
+		const children = this.children?.jsify()
+		if (children != undefined && children.code.length > 0) {
+			code = code.add(children)
 		}
+		if (!voidElements.has(this.tag.toLowerCase())) {
+			code = code.add(inline(JSON.stringify(`</${this.tag}>`)))
+		}
+		if (this.withBlock?.script) {
+			const script = this.withBlock.script.jsify()
+			// mostly for custom elements: `3rd-char=1-1` => `_3rdChar_1_1`
+			// h1 => h1, p => p, my-element => myElement
+			const variableName = this.tag
+				.replaceAll(/-[a-z]/g, (match) => match[1].toUpperCase())
+				.replace(/^\P{ID_Start}/u, "_$&")
+				.replaceAll(/\P{ID_Continue}/ug, "_")
+			code = code.add(
+				inline(`"<script>(function(${variableName}){"`),
+				script,
+				inline('"}(document.currentScript.previousElementSibling))</script>"'),
+			)
+		}
+		return code
 	}
-	static from(tag: string, reader: Reader): Element
-	static from(tag: string, reader: Reader, isVoid: false): Element
-	static from(tag: string, reader: Reader, isVoid: true): VoidElement
-	static from(tag: string, reader: Reader, isVoid = false): VoidElement | Element {
+	static from(tag: string, reader: Reader): Element {
 		let attributes_: Record<string, Attribute | SlotAttribute | Flag> = {}
 		while ("(.#".includes(reader.peek())) {
 			switch (reader.peek()) {
@@ -181,10 +186,10 @@ export class Element extends VoidElement {
 			}
 		}
 		reader.whitespace()
-		if (isVoid || voidElements.has(tag.toLowerCase())) {
-			return new VoidElement(tag, attributes_)
+		if (voidElements.has(tag.toLowerCase())) {
+			return new Element(tag, attributes_, undefined, WithBlock.from(reader))
 		}
 		const children = ChildNodes.from(reader, tag === "script" || tag === "style")
-		return new Element(tag, attributes_, children)
+		return new Element(tag, attributes_, children, WithBlock.from(reader))
 	}
 }

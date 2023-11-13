@@ -50,6 +50,7 @@ export const checker = (t: Deno.TestContext) => (name: string, source: string, e
 					expected.replaceAll(/\s+/g, ""),
 				)
 			} catch {
+				console.error(poggies.javascript())
 				throw readableError
 			}
 		}

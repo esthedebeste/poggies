@@ -1,4 +1,4 @@
-import { ChildNodes, multilinify } from "./nodes.ts"
+import { ChildNodes } from "./nodes.ts"
 import { Reader } from "./reader.ts"
 import { escapeHTMLSource, inputvar, outvar, readTextFile } from "./utils.ts"
 // only this file's .d.ts is exported to npm!!
@@ -31,7 +31,7 @@ export class Poggies {
 			}
 			throw error
 		}
-		const js = multilinify(this.nodes.jsify())
+		const js = this.nodes.jsify().multilinify().code
 		this.js = `with(${inputvar}){${escapeHTMLSource}let ${outvar}="";${js}return ${outvar};}`
 	}
 	/** Compiles the Poggies document into a function that can be called to return the rendered HTML */

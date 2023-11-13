@@ -1,20 +1,25 @@
 import { Element } from "./element.ts"
 import { Reader } from "./reader.ts"
 import { TemplateDeclaration, TemplateUsage } from "./templating.ts"
-import { defaultslot, escapeHTML, escapehtmlfunc, escapeJSON, isStringDelimiter, isTag, outvar } from "./utils.ts"
+import {
+	defaultslot,
+	escapeHTML,
+	escapehtmlfunc,
+	escapeJSON,
+	inline,
+	isStringDelimiter,
+	isTag,
+	JsifyResult,
+	multiline,
+} from "./utils.ts"
 
-export interface JsifyResult {
-	multiline: boolean
-	code: string
-}
 export interface Node {
 	jsify(): JsifyResult
 }
-export const multilinify = (js: JsifyResult): string => js.multiline ? js.code : `${outvar}+=${js.code};`
 class DynamicText implements Node {
 	constructor(public code: string) {}
 	jsify() {
-		return { multiline: false, code: this.code }
+		return inline(this.code)
 	}
 	static from(reader: Reader) {
 		const delimeter = reader.peek()
@@ -41,7 +46,7 @@ class DynamicText implements Node {
 class SlotNode implements Node {
 	constructor(public name: string) {}
 	jsify() {
-		return { multiline: false, code: this.name }
+		return inline(this.name)
 	}
 }
 
@@ -57,9 +62,9 @@ class Dynamic implements Node {
 			// Prevent for...of and for...in from leaking into global scope
 			? `for(let ${this.declaration}){`
 			: `${this.type}(${this.declaration}){`
-		code += multilinify(this.children.jsify())
+		code += this.children.jsify().multilinify().code
 		code += "}"
-		return { multiline: true, code }
+		return multiline(code)
 	}
 	static from(type: string, reader: Reader): Node {
 		reader.whitespace()
@@ -76,10 +81,7 @@ class Dynamic implements Node {
 class DynamicElse implements Node {
 	constructor(public children: ChildNodes) {}
 	jsify() {
-		return {
-			multiline: true,
-			code: `else{${multilinify(this.children.jsify())}}`,
-		}
+		return multiline(`else{${(this.children.jsify().multilinify().code)}}`)
 	}
 	/** Starts after else[whitespace] */
 	static from(reader: Reader) {
@@ -95,22 +97,7 @@ export class ChildNodes implements Node {
 		return this.nodes.length
 	}
 	jsify() {
-		let result = ""
-		let lastML = false
-		let hasML = false
-		for (const node of this.nodes) {
-			const { multiline, code } = node.jsify()
-			if (!hasML && multiline) {
-				hasML = true
-				if (!lastML && result.length > 0) result = `${outvar}+=${result}`
-			}
-			if (lastML) result += multiline ? code : `${outvar}+=${code}`
-			else if (result.length === 0) result += code
-			else result += multiline ? `;${code}` : `+${code}`
-			lastML = multiline
-		}
-		if (hasML && !lastML) result += ";"
-		return { multiline: hasML, code: result }
+		return JsifyResult.add(...this.nodes.map((node) => node.jsify()))
 	}
 	static from(reader: Reader, scriptHandling = false): ChildNodes {
 		reader.whitespace()

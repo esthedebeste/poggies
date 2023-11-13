@@ -10,14 +10,14 @@ syntax.
 html(lang=en-US) {
     head {
         title "Example Page"
-        style "
+        style {
             #header {
               text-align: center;
             }
             .red {
                 color: red;
             }
-        "
+        }
     }
     body {
         h1#header.red(onclick="alert('Hi')") "Hello World!"
@@ -97,6 +97,50 @@ Custom variables also work with renderFile of course,
 
 ```tsx
 await renderFile("hello.pog", { first: 12, second: 26 })
+```
+
+### Styles & Scripts
+
+For child content of styles and scripts, curly braces are allowed.
+
+```tsx
+style {
+  button {
+    color: green;
+  }
+}
+script {
+  const button = document.querySelector("button")
+  button.onclick = () => alert("Hi!")
+}
+```
+
+### Styles & Scripts
+
+For child content of styles and scripts, curly braces are allowed.
+
+```tsx
+style {
+  button {
+    color: green;
+  }
+}
+script {
+  const button = document.querySelector("button")
+  button.onclick = () => alert("Hi!")
+}
+```
+
+### With Scripts
+
+You can use `with script` to easily attach a script to an element:
+
+```tsx
+button "Click Me!" with script {
+  setTimeout(() => {
+    button.textContent = "Click Me!!!"
+  }, 10_000)
+}
 ```
 
 ### Dynamic Elements

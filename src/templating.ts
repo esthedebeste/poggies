@@ -1,7 +1,7 @@
-import { Element, SlotAttribute, VoidElement } from "./element.ts"
+import { Attribute, Element, Flag, SlotAttribute } from "./element.ts"
 import { ChildNodes, Node } from "./nodes.ts"
 import { Reader } from "./reader.ts"
-import { defaultslot, has, outvar, variableName } from "./utils.ts"
+import { defaultslot, has, Inline, inline, Multiline, multiline, outvar, variableName } from "./utils.ts"
 
 const templateName = (stringContent: string) =>
 	"$" + stringContent.replaceAll(
@@ -17,15 +17,12 @@ export class TemplateDeclaration implements Node {
 		public children: ChildNodes,
 	) {}
 	jsify() {
-		const { multiline, code } = this.children.jsify()
-		return {
-			multiline: true,
-			code: `const ${templateName(this.name)}=async({${
-				[...this.properties, defaultslot].join(
-					",",
-				)
-			}})=>${multiline ? `{let ${outvar}="";${code};return ${outvar};}` : code || '""'};`,
-		}
+		const jsify = this.children.jsify()
+		return multiline(`const ${templateName(this.name)}=async({${
+			[...this.properties, defaultslot].join(
+				",",
+			)
+		}})=>${jsify.multiline ? `{let ${outvar}="";${jsify.code};return ${outvar};}` : jsify.code || '""'};`)
 	}
 	static from(name: string, reader: Reader): TemplateDeclaration {
 		let properties: string[] = []
@@ -39,43 +36,44 @@ export class TemplateDeclaration implements Node {
 	}
 }
 
-export class TemplateUsage extends VoidElement {
+export class TemplateUsage extends Element {
+	constructor(
+		public tag: string,
+		public attributes: Record<string, Attribute | SlotAttribute | Flag>,
+	) {
+		super(tag, attributes)
+	}
 	jsify() {
 		const js = Object.entries(this.attributes).map(([name, attribute]) => [name, attribute.jsify()])
 		const multilines = js.filter(
-			(pair): pair is [string, { multiline: true; code: string }] => typeof pair[1] === "object" && pair[1].multiline,
+			(pair): pair is [string, Multiline] => typeof pair[1] === "object" && pair[1].multiline,
 		).map((pair) => {
 			pair.push(variableName())
-			return pair as never as [string, { multiline: true; code: string }, string]
+			return pair as never as [string, Multiline, string]
 		})
 		const inlines = js.filter(
-			(pair): pair is [string, { multiline: false; code: string } | string] =>
-				typeof pair[1] !== "object" || !pair[1].multiline,
+			(pair): pair is [string, Inline | string] => typeof pair[1] !== "object" || !pair[1].multiline,
 		)
 		const attributeObject = inlines
 			.map(([name, attribute]) =>
 				`${JSON.stringify(name)}:${typeof attribute === "string" ? attribute : attribute.code}`
 			)
 		if (multilines.length === 0) {
-			return {
-				multiline: false,
-				code: `(await ${templateName(this.tag)}({${attributeObject.join(",")}}))`,
-			}
+			return inline(`(await ${templateName(this.tag)}({${attributeObject.join(",")}}))`)
 		}
 		attributeObject.push(
 			...multilines.map(([name, , variable]) => `${JSON.stringify(name)}:${variable}`),
 		)
 
-		return {
-			multiline: true,
-			code: "{" + multilines.map(([, { code }, variable]) => {
+		return multiline(
+			"{" + multilines.map(([, { code }, variable]) => {
 				return `let ${variable};{let ${outvar} = "";${code};${variable}=${outvar}}`
 			}).join("") + `${outvar}+=(await ${templateName(this.tag)}({${attributeObject.join(",")}}))}`,
-		}
+		)
 	}
 	static from(name: string, reader: Reader): TemplateUsage {
-		const template = Element.from(name, reader, false)
-		if (template.children.size > 0) {
+		const template = Element.from(name, reader)
+		if (template.children && template.children.size > 0) {
 			if (has(template.attributes, defaultslot)) {
 				throw new Error(`Cannot have a ${defaultslot} attribute and a default slot (children of a template usage)`)
 			}

@@ -25,3 +25,12 @@ Deno.test("special {} syntax", async (t) => {
 		`<style>.hi { color: red; }</style>`,
 	)
 })
+
+Deno.test("with blocks", async (t) => {
+	const check = checker(t)
+	await check(
+		"with script",
+		`p "hello" with script { p.textContent = "hi"; }`,
+		`<p>hello</p><script>(function(p){ p.textContent = "hi"; }(document.currentScript.previousElementSibling))</script>`,
+	)
+})
