@@ -25,11 +25,23 @@ export class TemplateDeclaration implements Node {
 		}})=>${jsify.multiline ? `{let ${outvar}="";${jsify.code};return ${outvar};}` : jsify.code || '""'};`)
 	}
 	static from(name: string, reader: Reader): TemplateDeclaration {
+		reader.whitespace()
+		if (reader.check("from")) {
+			reader.whitespace()
+			if (reader.peek() != '"' && reader.peek() != "'") reader.error("Invalid template tag, expected a string literal")
+			let pathLiteral = reader.jsString()
+			if (pathLiteral[0] === "'") {
+				// replaces all unescaped " with \"
+				pathLiteral = '"' + pathLiteral.replaceAll(/(?<!\\)"/g, '\\"').slice(1, -1) + '"'
+			}
+			const path = JSON.parse(pathLiteral)
+			reader = reader.import(path) // swap to the other reader to parse the template declaration
+		}
 		let properties: string[] = []
-		if (reader.check("(")) {
+		if (reader.check("(")) { // TODO: imported templates with properties/arguments
 			const text = reader.collect((char) => char !== ")")
 			properties = text.split(/\s+/).map((s) => s.trim()).filter((s) => s.length > 0)
-			if (!reader.check(")")) throw new Error("Invalid template tag, no closing `)`")
+			if (!reader.check(")")) reader.error("Invalid template tag, no closing `)`")
 		}
 		const children = ChildNodes.from(reader)
 		return new TemplateDeclaration(name, properties, children)
@@ -75,7 +87,7 @@ export class TemplateUsage extends Element {
 		const template = Element.from(name, reader)
 		if (template.children && template.children.size > 0) {
 			if (has(template.attributes, defaultslot)) {
-				throw new Error(`Cannot have a ${defaultslot} attribute and a default slot (children of a template usage)`)
+				reader.error(`Cannot have a ${defaultslot} attribute and a default slot (children of a template usage)`)
 			}
 			template.attributes[defaultslot] = new SlotAttribute(template.children)
 		}

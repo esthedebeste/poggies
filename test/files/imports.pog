@@ -1,0 +1,4 @@
+$$imported from './colon3.pog'
+
+h1 "hey what's up"
+$imported

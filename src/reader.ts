@@ -1,10 +1,32 @@
+import { Importer } from "./poggies.ts"
 import { isClose, isOpen, isStringDelimiter, isTag, isWS } from "./utils.ts"
 
 export class Reader {
 	index = 0
 	line = 1
 	column = 1
-	constructor(public source: string) {}
+	constructor(public source: string, public path: string | URL = "<start>", public importer?: Importer) {}
+
+	import(path: string | URL) {
+		if (this.importer === undefined) this.error(`No importer provided, cannot import ${path}`)
+		if (typeof path === "string" && path.startsWith(".")) {
+			path = new URL(path, this.path) // relative path from self, not cwd
+		}
+		const source = this.importer(path)
+		const reader = new Reader("{" + source + "}", path, this.importer)
+		reader.column-- // because the first character is a fake {
+		return reader
+	}
+
+	error(message: string): never {
+		const error = new Error(message)
+		error.name = "PoggiesError"
+		error.message += ` at (${this.path}:${this.line}:${this.column}) ("${
+			this.source.slice(this.index - 5, this.index + 5)
+		}")`
+		throw error
+	}
+
 	/**
 	 * Peeks at the next character in the source
 	 * @param extra 0 returns the same as next(), 1 returns what's after that, etc.
@@ -76,7 +98,7 @@ export class Reader {
 				this.next()
 			}
 		}
-		throw new Error(`Unmatched string from (${startLine}:${startColumn})`)
+		this.error(`Unmatched string from (${startLine}:${startColumn})`)
 	}
 	jsString(): string {
 		const start = this.index
@@ -100,7 +122,7 @@ export class Reader {
 			} else if (isStringDelimiter(char)) this.skipJsString()
 			else this.next()
 		}
-		throw new Error("Unmatched bracket")
+		this.error("Unmatched bracket")
 	}
 	whitespace() {
 		while (

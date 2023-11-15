@@ -38,7 +38,7 @@ class DynamicText implements Node {
 				return text
 			}
 		}
-		throw new Error(`Invalid delimeter ${delimeter}`)
+		reader.error(`Invalid delimeter ${delimeter}`)
 	}
 }
 
@@ -68,9 +68,9 @@ class Dynamic implements Node {
 	}
 	static from(type: string, reader: Reader): Node {
 		reader.whitespace()
+		if (type === "else") return DynamicElse.from(reader)
 		if (reader.peek() !== "(") {
-			if (type === "else") return DynamicElse.from(reader)
-			else throw new Error(`Expected ( after dynamic name ${type}`)
+			reader.error(`Expected ( after dynamic name ${type}`)
 		}
 		const content = reader.jsExpression().slice(1, -1)
 		const children = ChildNodes.from(reader)
@@ -142,7 +142,7 @@ export class ChildNodes implements Node {
 								if (reader.check("(")) {
 									name = reader.identifier()
 									reader.whitespace()
-									if (!reader.check(")")) throw new Error("Expected ) to close slot name")
+									if (!reader.check(")")) reader.error("Expected ) to close slot name")
 								}
 								nodes.push(new SlotNode(name))
 							} else {
@@ -153,7 +153,7 @@ export class ChildNodes implements Node {
 						c = reader.peek()
 					}
 					reader.whitespace()
-					if (!reader.check("}")) throw new Error("Expected } to close child nodes")
+					if (!reader.check("}")) reader.error("Expected } to close child nodes")
 					break
 				}
 				case "`":

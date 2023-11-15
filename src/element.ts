@@ -95,15 +95,14 @@ function parseAttributes(
 ) {
 	while (!reader.eof()) {
 		reader.whitespace()
-		if (reader.peek() === ")") {
-			reader.skip(1)
+		if (reader.check(")")) {
 			break
 		}
 		if (reader.check("(")) {
 			// a((href)) => a(href=(href)) shorthand
 			const name = reader.identifier()
 			if (!reader.check(")")) {
-				throw new Error("expected ) after tag in attribute shortcut (`a((href))` => `a(href=(href))`)")
+				reader.error("expected ) after tag in attribute shortcut (`a((href))` => `a(href=(href))`)")
 			}
 			attributes[name] = new Attribute(name)
 			continue
@@ -117,7 +116,7 @@ function parseAttributes(
 				reader.whitespace()
 				const flag = reader.identifier()
 				if (!EVENT_HANDLER_FLAGS.has(flag as never)) {
-					throw new Error(`Invalid event handler flag ${flag}, expected: ${[...EVENT_HANDLER_FLAGS].join(", ")}`)
+					reader.error(`Invalid event handler flag ${flag}, expected: ${[...EVENT_HANDLER_FLAGS].join(", ")}`)
 				}
 				flags[flag as keyof EventHandlerFlags] = true
 			}
@@ -169,7 +168,7 @@ export class WithBlock {
 		if (reader.check("script")) {
 			reader.whitespace()
 			return new WithBlock(ChildNodes.from(reader, true))
-		} else throw new Error("Expected script after with")
+		} else reader.error("Expected script after with")
 	}
 }
 

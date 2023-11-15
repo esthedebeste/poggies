@@ -53,26 +53,37 @@ export const escapehtmlfunc = "__ESCAPE_HTML__"
 
 declare global {
 	// @ts-ignore if deno already exists
-	const Deno: undefined | { readTextFile: (file: PathLike) => Promise<string> }
+	const Deno: undefined | {
+		readTextFile: (file: PathLike) => Promise<string>
+		readTextFileSync: (file: PathLike) => string
+	}
 	// @ts-ignore if process already exists
-	const process: undefined | { release: { name: string } }
+	const process: undefined | object
 }
 
-export let readTextFile = async function (file: PathLike): Promise<string> {
-	if (typeof Deno === "object") {
-		readTextFile = (file) => Deno.readTextFile(file)
-	} else {
-		try {
-			const fs = await import("node:fs")
-			const { readFile } = fs.promises
-			readTextFile = (file) => readFile(file, "utf8")
-		} catch {
+export let readTextFile: (file: PathLike) => Promise<string>
+export let readTextFileSync: (path: PathLike) => string
+
+if (typeof Deno === "object") {
+	readTextFile = (file) => Deno.readTextFile(file)
+	readTextFileSync = (file) => Deno.readTextFileSync(file)
+} else if (typeof process === "object") {
+	try {
+		const { promises: { readFile }, readFileSync } = await import("node:fs")
+		readTextFile = (file) => readFile(file, "utf8")
+		readTextFileSync = (file) => readFileSync(file, "utf8")
+	} catch {
+		readTextFile = () => {
 			throw new Error(
-				"Unsupported environment for renderFile, expected Deno or Node.js",
+				"Unsupported environment for poggies.renderFile, expected Deno or Node.js (or compatible)",
+			)
+		}
+		readTextFileSync = () => {
+			throw new Error(
+				"Default importer for poggies files only exists in Deno, Node.js, or compatible runtimes. Please specify an importer function.",
 			)
 		}
 	}
-	return readTextFile(file) // call the new function
 }
 
 type Falsy = false | undefined | null | 0 | ""

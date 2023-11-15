@@ -1,6 +1,6 @@
 import { ChildNodes } from "./nodes.ts"
 import { Reader } from "./reader.ts"
-import { escapeHTMLSource, inputvar, outvar, readTextFile } from "./utils.ts"
+import { escapeHTMLSource, inputvar, outvar, readTextFile, readTextFileSync } from "./utils.ts"
 // only this file's .d.ts is exported to npm!!
 // be careful not to export types from other files :p
 
@@ -11,6 +11,27 @@ export type Options = {
 	doctype?: string | false
 }
 
+/**
+ * Importer function for `import` statements.
+ * @param path The path of the file to import
+ * @returns Poggies source code
+ */
+export type Importer = (path: string | URL) => string
+
+export interface PoggiesOptions {
+	/**
+	 * Name of the main document. Used for error messages, often the path.
+	 * @default "<start>"
+	 */
+	name?: string
+	/**
+	 * Importer function for `$$component from "path"` statements. Defaults to `readTextFileSync` in Deno and Node.js (or compatible runtimes).
+	 * @param path The path of the file to import
+	 * @returns Poggies source code
+	 */
+	importer?: Importer
+}
+
 export type RenderFunction = (input: Record<string, unknown>) => Promise<string>
 
 export class Poggies {
@@ -18,19 +39,10 @@ export class Poggies {
 	private func!: RenderFunction
 	/** The body of the function. Available before calling compile() or javascript() */
 	js: string
-	constructor(source: string) {
-		const reader = new Reader("{" + source + "}")
+	constructor(source: string, { importer = readTextFileSync, name = "<start>" }: PoggiesOptions = {}) {
+		const reader = new Reader("{" + source + "}", name, importer)
 		reader.column-- // because the first character is a fake {
-		try {
-			this.nodes = ChildNodes.from(reader)
-		} catch (error) {
-			if (error instanceof Error) {
-				error.message += ` at (${reader.line}:${reader.column}) ("${
-					reader.source.slice(reader.index - 5, reader.index + 5)
-				}")`
-			}
-			throw error
-		}
+		this.nodes = ChildNodes.from(reader)
 		const js = this.nodes.jsify().multilinify().code
 		this.js = `with(${inputvar}){${escapeHTMLSource}let ${outvar}="";${js}return ${outvar};}`
 	}
@@ -63,20 +75,24 @@ export class Poggies {
 
 export type PathLike = string | URL
 const fileCache = new Map<PathLike, Poggies>()
+
+export type RenderFileOptions = Options & PoggiesOptions & { cache?: boolean }
+
 /** Coggers promise-style template function */
 export async function renderFile(
 	file: PathLike,
 	input: Record<string, unknown> = {},
-	options: Options & { cache?: boolean } = {},
+	options: Options & PoggiesOptions & { cache?: boolean } = {},
 ): Promise<string> {
-	if (options.cache === false) {
-		const poggies = new Poggies(await readTextFile(file))
-		return poggies.render(input, options)
+	if (options.cache) {
+		const cached = fileCache.get(file)
+		if (cached != undefined) return cached.render(input, options)
 	}
-
-	let poggies = fileCache.get(file)
-	if (poggies == undefined) {
-		poggies = new Poggies(await readTextFile(file))
+	const source = await readTextFile(file)
+	options.importer ??= readTextFileSync
+	options.name ??= file.toString()
+	const poggies = new Poggies(source, options)
+	if (options.cache) {
 		fileCache.set(file, poggies)
 	}
 	return poggies.render(input, options)
@@ -85,7 +101,7 @@ export async function renderFile(
 export function express(
 	file: string,
 	input: Record<string, unknown> = {},
-	options: Options = {},
+	options: Options & PoggiesOptions & { cache?: boolean } = {},
 	callback: (error: unknown, html?: string) => unknown,
 ) {
 	renderFile(file, input, options).then(

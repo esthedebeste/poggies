@@ -1,3 +1,5 @@
+import { assertEquals } from "https://deno.land/std@0.201.0/assert/assert_equals.ts"
+import { renderFile } from "../src/poggies.ts"
 import { checker } from "./utils.ts"
 
 Deno.test("readme documents", async (t) => {
@@ -342,4 +344,19 @@ Deno.test("checks", async (t) => {
     `,
 		"",
 	)
+})
+
+Deno.test("renderFile", async (t) => {
+	await t.step("basic renderFile", async () => {
+		const result = await renderFile(new URL("files/colon3.pog", import.meta.url))
+		assertEquals(result, "<p>:3</p>")
+	})
+	await t.step("renderFile with variables", async () => {
+		const result = await renderFile(new URL("files/addition.pog", import.meta.url), { a: 1, b: 2 })
+		assertEquals(result, "<span>1 + 2 = 3</span>")
+	})
+	await t.step("renderFile with imports", async () => {
+		const result = await renderFile(new URL("files/imports.pog", import.meta.url))
+		assertEquals(result, "<h1>hey what's up</h1><p>:3</p>")
+	})
 })
