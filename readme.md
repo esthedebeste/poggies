@@ -115,22 +115,6 @@ script {
 }
 ```
 
-### Styles & Scripts
-
-For child content of styles and scripts, curly braces are allowed.
-
-```tsx
-style {
-  button {
-    color: green;
-  }
-}
-script {
-  const button = document.querySelector("button")
-  button.onclick = () => alert("Hi!")
-}
-```
-
 ### With Scripts
 
 You can use `with script` to easily attach a script to an element:
