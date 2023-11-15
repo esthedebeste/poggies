@@ -143,6 +143,21 @@ button "Click Me!" with script {
 }
 ```
 
+With Scripts capture the element as its name (custom elements like `my-timer` get captured as `myTimer`), and its `data-` properties as `dataset`.
+
+### Event Handlers
+
+You can use `on:event` as a shortcut to attach event listeners to an element.
+
+```tsx
+button(data-counter=(0) on:click|preventDefault {
+  dataset.counter += 1
+  button.textContent = `Clicked ${dataset.counter} times!`
+}) "Click Me!"
+```
+
+(inspired by [svelte's on:event element directives](https://svelte-dzzmzvuk2-svelte.vercel.app/docs/element-directives), but without `nonpassive`)
+
 ### Dynamic Elements
 
 You can add Elements to the children of an object dynamically!

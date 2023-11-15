@@ -65,6 +65,69 @@ html(lang=en-US) {
 	)
 
 	await check(
+		"Syntax script{} & style{}",
+		`style {
+      button {
+        color: green;
+      }
+    }
+    script {
+      const button = document.querySelector("button")
+      button.onclick = () => alert("Hi!")
+    }`,
+		`<style>
+	button {
+		color: green;
+	}
+</style>
+<script>
+	const button = document.querySelector("button")
+	button.onclick = () => alert("Hi!")
+</script>
+`,
+	)
+
+	await check(
+		"Syntax with scripts",
+		`button "Click Me!" with script {
+      setTimeout(() => {
+        button.textContent = "Click Me!!!"
+      }, 10_000)
+    }`,
+		`<button>Click Me!</button>
+    <script>
+      {
+        const button = document.currentScript.previousElementSibling,
+          { dataset } = button;
+        setTimeout(() => {
+          button.textContent = "Click Me!!!"
+        }, 10_000)
+      }
+    </script>
+    `,
+	)
+
+	await check(
+		"Syntax Event Handlers",
+		`button(data-counter=(0) on:click|preventDefault {
+      dataset.counter += 1
+      button.textContent = \`Clicked \${dataset.counter} times!\`
+    }) "Click Me!"`,
+		`<button data-counter="0">Click Me!</button>
+    <script>
+      {
+        const button = document.currentScript.previousElementSibling,
+          { dataset } = button;
+        button.addEventListener("click", function (event) {
+          event.preventDefault();
+          dataset.counter += 1
+          button.textContent = \`Clicked \${dataset.counter} times!\`
+        });
+      }
+    </script>`,
+	)
+
+	await check(
 		"Dynamic For",
 		`div "For " {
         for(word of words) \`\${word} \`
@@ -266,18 +329,17 @@ html(lang=en-US) {
       </div>
     </multielemtest>`,
 	)
-
 })
 
 Deno.test("checks", async (t) => {
-  const check = checker(t)
-  
-  await check(
-    "empty template",
-    `
+	const check = checker(t)
+
+	await check(
+		"empty template",
+		`
     $$thing() 
     $thing
     `,
-    "" 
-  )
+		"",
+	)
 })

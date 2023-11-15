@@ -31,6 +31,32 @@ Deno.test("with blocks", async (t) => {
 	await check(
 		"with script",
 		`p "hello" with script { p.textContent = "hi"; }`,
-		`<p>hello</p><script>(function(p){ p.textContent = "hi"; }(document.currentScript.previousElementSibling))</script>`,
+		`<p>hello</p>
+		<script>{
+			const p=document.currentScript.previousElementSibling,{dataset}=p;
+			p.textContent = "hi"; 
+		}</script>`,
+	)
+})
+
+Deno.test("event handlers", async (t) => {
+	const check = checker(t)
+	await check(
+		"with script",
+		`p(on:click|capture|once|passive|preventDefault|stopPropagation|stopImmediatePropagation|self|trusted {
+			p.textContent = "clicked"
+		}) "hello"`,
+		`<p>hello</p>
+		<script>{
+			const p=document.currentScript.previousElementSibling,{dataset}=p;
+			p.addEventListener("click",function(event){
+				if(event.target!==p)return;
+				if(!event.isTrusted)return;
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+				p.textContent = "clicked"
+			},{"capture":true,"once":true,"passive":true});
+		}</script>`,
 	)
 })

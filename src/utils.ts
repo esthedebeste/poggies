@@ -75,13 +75,17 @@ export let readTextFile = async function (file: PathLike): Promise<string> {
 	return readTextFile(file) // call the new function
 }
 
+type Falsy = false | undefined | null | 0 | ""
+
 export class JsifyResult {
 	constructor(public multiline: boolean, public code: string) {}
-	static add(...jsify: JsifyResult[]): JsifyResult {
+	static add(...jsify: (JsifyResult | Falsy)[]): JsifyResult {
 		let result = ""
 		let lastML = false
 		let hasML = false
-		for (const { multiline, code } of jsify) {
+		for (const part of jsify) {
+			if (!part) continue
+			const { multiline, code } = part
 			if (!hasML && multiline) {
 				hasML = true
 				if (!lastML && result.length > 0) result = `${outvar}+=${result}`
@@ -94,7 +98,7 @@ export class JsifyResult {
 		if (hasML && !lastML) result += ";"
 		return new JsifyResult(hasML, result)
 	}
-	add(...jsify: JsifyResult[]): JsifyResult {
+	add(...jsify: (JsifyResult | Falsy)[]): JsifyResult {
 		return JsifyResult.add(this, ...jsify)
 	}
 	inlinify(): JsifyResult {
@@ -107,5 +111,6 @@ export class JsifyResult {
 
 export type Inline = JsifyResult & { multiline: false }
 export const inline = (code: string) => new JsifyResult(false, code)
+export const text = (text: string) => new JsifyResult(false, JSON.stringify(text))
 export type Multiline = JsifyResult & { multiline: true }
 export const multiline = (code: string) => new JsifyResult(true, code)
