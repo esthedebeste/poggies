@@ -1,6 +1,6 @@
 {
 	"name": "poggies",
-	"version": "2.2.0",
+	"version": "2.3.0",
 	"description": "A simple JavaScript templating engine",
 	"main": "dist/poggies.js",
 	"types": "dist/poggies.d.ts",
