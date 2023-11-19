@@ -267,6 +267,25 @@ $red_and_blue(red={
 </div>
 ```
 
+## Importing
+
+You can import other poggies documents by using a template declaration-like syntax.
+
+```tsx
+// component.pog
+p "Hello from a component!"
+
+// index.pog
+$$component from "./component.pog"
+
+h1 "Hello from the root!"
+$component
+
+// →→→ index.html
+<h1>Hello from the root!</h1>
+<p>Hello from a component!</p>
+```
+
 <br><br><br>
 
 ### Extras
